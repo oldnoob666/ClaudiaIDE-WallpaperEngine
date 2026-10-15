@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -42,6 +43,7 @@ namespace ClaudiaIDE
         private List<ImageProvider> _imageProviders;
         private Window _mainWindow;
         private Setting _settings;
+        private bool _wallpaperCommandRegistered;
         private readonly Dictionary<string, DependencyObject> _defaultThemeColor = new Dictionary<string, DependencyObject>();
 
         protected override async Task InitializeAsync(CancellationToken cancellationToken,
@@ -66,9 +68,10 @@ namespace ClaudiaIDE
                     });
 
                 _imageProviders = ProvidersHolder.Instance.Providers;
-                _imageProvider = _imageProviders.FirstOrDefault(x => x.ProviderType == _settings.ImageBackgroundType);
+                _imageProvider = _imageProviders.FirstOrDefault(x => x.ProviderType == ProvidersHolder.ProviderTypeForMode(_settings.ImageBackgroundType));
                 _imageProvider.IsActive = true;
                 _imageProviders.ForEach(x => x.NewImageAvailable += InvokeChangeImage);
+                InitializeWallpaperCommandAsync().Forget();
 
                 NextImage.InitializeAsync(this)
                     .FileAndForget("claudiaide/nextimage/initializeasync");
@@ -112,9 +115,10 @@ namespace ClaudiaIDE
 
                     _imageProviders = ProvidersHolder.Instance.Providers;
                     _imageProvider =
-                        _imageProviders.FirstOrDefault(x => x.ProviderType == _settings.ImageBackgroundType);
+                        _imageProviders.FirstOrDefault(x => x.ProviderType == ProvidersHolder.ProviderTypeForMode(_settings.ImageBackgroundType));
                     _imageProvider.IsActive = true;
                     _imageProviders.ForEach(x => x.NewImageAvailable += InvokeChangeImage);
+                    await InitializeWallpaperCommandAsync();
 
                     await NextImage.InitializeAsync(this);
                     await PauseSlideshow.InitializeAsync(this);
@@ -139,6 +143,26 @@ namespace ClaudiaIDE
         private void InvokeChangeImage(object sender, EventArgs e)
         {
             ChangeImageAsync().Forget();
+        }
+
+        private async Task InitializeWallpaperCommandAsync()
+        {
+            await JoinableTaskFactory.SwitchToMainThreadAsync();
+            var commands = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
+            if (_wallpaperCommandRegistered || commands == null) return;
+            _wallpaperCommandRegistered = true;
+            commands.AddCommand(new MenuCommand((s, e) =>
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                foreach (var type in new[] { typeof(ClaudiaIdeOptionPageGrid), typeof(ClaudiaIdeDarkThemeOptionPageGrid) })
+                {
+                    var page = (ClaudiaIdeOptionPageGrid)GetDialogPage(type);
+                    page.ImageBackgroundType = ImageBackgroundType.WallpaperEngine;
+                    page.ExpandToIDE = false;
+                    page.SaveSettingsToStorage();
+                }
+                Setting.DefaultInstance.OnApplyChanged();
+            }, new CommandID(new Guid(GuidList.MenuSetId), 0x0180)));
         }
 
         private async Task ChangeImageAsync()
@@ -166,7 +190,7 @@ namespace ClaudiaIDE
                     if (el.GetType() == typeof(Image))
                     {
                         if (_settings.ImageBackgroundType == ImageBackgroundType.Single
-                            || !_settings.ExpandToIDE
+                            || !_settings.ExpandToIDE || _settings.ImageBackgroundType == ImageBackgroundType.WallpaperEngine
                             || ProvidersHolder.Instance.ActiveProvider?.IsStaticImage() == false)
                         {
                             removeTargets.Add(el);
@@ -181,7 +205,7 @@ namespace ClaudiaIDE
                     if (el.GetType() == typeof(MediaElement))
                     {
                         if (_settings.ImageBackgroundType == ImageBackgroundType.Single
-                            || !_settings.ExpandToIDE
+                            || !_settings.ExpandToIDE || _settings.ImageBackgroundType == ImageBackgroundType.WallpaperEngine
                             || ProvidersHolder.Instance.ActiveProvider?.IsStaticImage() == true)
                         {
                             removeTargets.Add(el);
@@ -197,7 +221,7 @@ namespace ClaudiaIDE
                 removeTargets.ForEach(x => rRootGrid.Children.Remove(x));
 
                 var key = $"#{VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey).Name}|RootGrid";
-                if (_settings.ExpandToIDE)
+                if (_settings.ExpandToIDE && _settings.ImageBackgroundType != ImageBackgroundType.WallpaperEngine)
                 {
                     if (rRootGrid.Background is SolidColorBrush sb)
                     {

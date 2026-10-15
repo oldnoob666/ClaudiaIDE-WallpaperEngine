@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net472</TargetFramework><UseWPF>true</UseWPF><LangVersion>12</LangVersion><EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" /><PackageReference Include="Newtonsoft.Json" Version="13.0.4" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperProject.cs" Link="WallpaperProject.cs" /><Compile Include="../../Shared/WallpaperEngine/WallpaperHost.cs" Link="WallpaperHost.cs" /></ItemGroup>
+</Project>

@@ -37,6 +37,11 @@ namespace ClaudiaIDE
         [Order(Before = PredefinedAdornmentLayers.DifferenceChanges)]
         public AdornmentLayerDefinition EditorAdornmentLayer { get; set; }
 
+        [Export(typeof(AdornmentLayerDefinition))]
+        [Name("ClaudiaIDE.WallpaperEngine")]
+        [Order(Before = PredefinedAdornmentLayers.Text)]
+        public AdornmentLayerDefinition WallpaperEngineLayer { get; set; }
+
         /// <summary>
         ///     Instantiates a ClaudiaIDE manager when a textView is created.
         /// </summary>

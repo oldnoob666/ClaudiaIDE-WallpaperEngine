@@ -62,6 +62,17 @@ namespace ClaudiaIDE.Options
         [TypeConverter(typeof(ImageBackgroundTypeConverter))]
         public ImageBackgroundType ImageBackgroundType { get; set; }
 
+        [Category("Wallpaper Engine")]
+        [DisplayName("Wallpaper Engine 安装目录")]
+        [Description("留空自动从 Steam 库定位；选择包含 config.json 的 wallpaper_engine 目录。")]
+        [Editor(typeof(BrowseDirectory), typeof(UITypeEditor))]
+        public string WallpaperEngineDirectory { get; set; } = "";
+
+        [Category("Wallpaper Engine")]
+        [DisplayName("跟随的显示器")]
+        [Description("Wallpaper Engine 配置中的显示器名称，例如 Monitor0；跟随该显示器已保存的当前壁纸。")]
+        public string WallpaperEngineMonitor { get; set; } = "Monitor0";
+
         [LocalManager.LocalizedCategoryAttribute("Image")]
         [LocalManager.LocalizedDisplayNameAttribute("OpacityType")]
         [LocalManager.LocalizedDescriptionAttribute("OpacityTypeDes")]
@@ -292,6 +303,7 @@ namespace ClaudiaIDE.Options
                 if (str == "SingleWeb") return ImageBackgroundType.WebSingle;
                 if (str == "WebApi") return ImageBackgroundType.WebApi;
                 if (str == "SlideshowEach") return ImageBackgroundType.SlideshowEach;
+                if (str == "WallpaperEngine") return ImageBackgroundType.WallpaperEngine;
                 return ImageBackgroundType.Single;
             }
 
@@ -316,6 +328,8 @@ namespace ClaudiaIDE.Options
                     result = "WebApi";
                 else if ((int)value == 5)
                     result = "SlideshowEach";
+                else if ((int)value == 6)
+                    result = "WallpaperEngine";
                 if (result != null) return result;
             }
 

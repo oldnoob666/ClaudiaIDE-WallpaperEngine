@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net9.0-windows</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable></PropertyGroup>
+  <ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13.0.4" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperProject.cs" Link="WallpaperProject.cs" Condition="Exists('../../Shared/WallpaperEngine/WallpaperProject.cs')" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperHost.cs" Link="WallpaperHost.cs" /></ItemGroup>
+</Project>

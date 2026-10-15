@@ -1,0 +1,52 @@
+# ClaudiaIDE Wallpaper Engine 联动版
+
+本机修改版 3.1.52.4，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
+
+## 当前配置与使用
+
+- 浅色/深色主题均已保存 `WallpaperEngine` 模式，不透明度 `0.35`。
+- 安装目录：`D:\SteamLibrary\steamapps\common\wallpaper_engine`；跟随 `Monitor0`。
+- 动态背景显示在代码编辑区。`Ctrl+Shift+Alt+C` 显示/隐藏背景。
+- 菜单“扩展 → ClaudiaIDE → 跟随 Wallpaper Engine”可重新启用联动并保存两套主题的模式。
+- 菜单“扩展 → ClaudiaIDE → 打开设置”可调整透明度、目录和显示器；背景来源选 `Single` 并保存可恢复普通图片。
+
+启动 Wallpaper Engine 并切换壁纸，编辑区通常约 2–4 秒跟随。Wallpaper Engine 未运行时，显示配置文件最后保存的选择。扩展只执行查询命令。
+
+文字位于背景上方。视频静音循环播放，场景目标 30 FPS。隐藏背景、最小化 VS、不可见的视图会暂停动画；关闭编辑视图释放浏览器。
+
+## 实现与验证
+
+本版借鉴 DSH 读取 Wallpaper Engine 素材、通过 HTML video / WebWallGL 独立播放的方法，将它接入 ClaudiaIDE 编辑器背景，并增加官方命令检测桌面实时选择。分析见同目录《参考项目拆解.md》。
+
+本机实测：22 项配置解析、路径保护、HTTP 范围和中文/嵌套路径检查通过；保存动态模式后的启动检查通过。真实场景“明日方舟终末地_佩丽卡_时钟”在 VS 编辑区约 30 FPS；真实视频“世界很温柔—《龙族》上杉绘梨衣.mp4”从约 0.3 秒推进到 20.3 秒。已安装扩展跟随 Wallpaper Engine 实际执行场景→视频→场景切换，编辑、保存、隐藏/显示正常。
+
+这是同一素材的独立播放，进度不与桌面逐帧同步。WebWallGL 是第三方实现，未保证全部工坊场景、特殊脚本或交互效果兼容。应用类壁纸不执行。外部目录若被官方 CLI 返回成乱码，可能无法定位；本机工坊数字目录及中文视频文件名已验证。
+
+## 文件和排查
+
+- `ClaudiaIDE-WallpaperEngine-3.1.52.4.vsix`：安装包。
+- `ClaudiaIDE-WallpaperEngine-source.zip`：完整源码；`ClaudiaIDE-WallpaperEngine.patch`：相对官方基线的补丁。
+- `VS编辑区实测.png`：真实 VS 截图；`动态背景叠加验证.png`：独立 WPF 验证截图。
+- `实际联动验证.log`、`播放验证.log`、`自动检查.log`：验证记录。
+- 日志：`%LOCALAPPDATA%\ClaudiaIDE\WallpaperEngine.log`；浏览器数据：`%LOCALAPPDATA%\ClaudiaIDE\WebView2`。
+
+没有背景时，先确认是在代码/文本编辑区、显示器名称正确，再看日志中的加载/渲染错误。单个场景不兼容时可换视频验证。
+
+## 源码构建
+
+需要 VS 2022 扩展开发组件、.NET Framework 4.7.2 targeting pack；自动检查工程另外使用 .NET 9 SDK。
+
+源码根目录执行：
+
+```powershell
+& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe' ClaudiaIDE\ClaudiaIDE.csproj /restore /p:Configuration=Release /v:minimal /nologo
+dotnet run --project tests\WallpaperEngine.Tests
+```
+
+安装包在 `ClaudiaIDE\bin\Release\net472\ClaudiaIDE.vsix`。运行时需要 WebView2 Runtime，不需要 Node、npm 或 CDN。包内包含播放器、查询工具和 WebWallGL MIT 许可证。
+
+## 回退
+
+恢复图片：将 ClaudiaIDE 背景来源改为 `Single` 并保存。
+
+恢复官方版：在 Visual Studio 扩展管理器卸载本地联动版，按提示关闭 VS 完成卸载，再运行保留的 `ClaudiaIDE-3.1.52.vsix`。官方版本号更低，需先卸载联动版。未修改 Wallpaper Engine 程序文件或壁纸素材。

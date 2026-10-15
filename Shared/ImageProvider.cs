@@ -73,12 +73,14 @@ namespace ClaudiaIDE
         public static void Initialize(Setting settings, List<ImageProvider> providers)
         {
             if (_instance.Value.Providers == null) _instance.Value.Providers = providers;
-            var tp = _instance.Value.Providers?.FirstOrDefault(x => x.ProviderType == settings?.ImageBackgroundType);
+            var tp = _instance.Value.Providers?.FirstOrDefault(x => x.ProviderType == ProviderTypeForMode(settings?.ImageBackgroundType ?? ImageBackgroundType.Single));
             if (tp != null) tp.IsActive = true;
         }
 
         public ImageProvider ChangeActive(ImageBackgroundType newType, string solution)
         {
+            // Dynamic backgrounds use the view renderer instead of a BitmapSource provider.
+            newType = ProviderTypeForMode(newType);
             Providers.ForEach(x => x.IsActive = false);
             var ret = Providers.FirstOrDefault(x => x.SolutionConfigFile == solution && x.ProviderType == newType);
             if (!string.IsNullOrEmpty(solution))
@@ -98,5 +100,8 @@ namespace ClaudiaIDE
             ret.IsActive = true;
             return ret;
         }
+
+        public static ImageBackgroundType ProviderTypeForMode(ImageBackgroundType mode)
+            => mode == ImageBackgroundType.WallpaperEngine ? ImageBackgroundType.Single : mode;
     }
 }

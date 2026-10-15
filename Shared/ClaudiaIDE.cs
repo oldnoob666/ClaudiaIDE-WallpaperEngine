@@ -37,6 +37,9 @@ namespace ClaudiaIDE
         private DependencyObject _wpfTextViewHost = null;
         private VisualBrush _visualBrush = null;
         private VisualBrush _visualBrushStatic = null;
+#if VS_LATEST
+        private WallpaperEngine.WallpaperBackground _wallpaperBackground;
+#endif
         private System.Drawing.Color _currentThemeColor = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
 
         /// <summary>
@@ -73,6 +76,10 @@ namespace ClaudiaIDE
                 };
                 _view.Closed += (s, e) =>
                 {
+#if VS_LATEST
+                    _wallpaperBackground?.Dispose();
+#endif
+                    VSColorTheme.ThemeChanged -= VSColorTheme_ThemeChanged;
                     _imageProviders.ForEach(x => x.NewImageAvailable -= InvokeChangeImage);
                     _settings?.OnChanged.RemoveEventHandler(ReloadSettings);
                 };
@@ -124,6 +131,33 @@ namespace ClaudiaIDE
             try
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+#if VS_LATEST
+                if (_settings.ImageBackgroundType == ImageBackgroundType.WallpaperEngine)
+                {
+                    if (_wallpaperBackground == null)
+                    {
+                        // Suspend the ordinary VisualBrush before adding a translucent browser.
+                        await SetCanvasBackgroundAsync();
+                        await FindWpfTextViewAsync(_adornmentLayer as DependencyObject);
+                        if (_wpfTextViewHost != null)
+                        {
+                            var parent = VisualTreeHelper.GetParent(_wpfTextViewHost) as Panel;
+                            if (parent != null)
+                                foreach (var grid in parent.Children.OfType<Grid>().Where(g => g.Name == "ClaudiaIdeImage")) grid.Background = null;
+                            _wpfTextViewHost.SetValue(Panel.BackgroundProperty, new SolidColorBrush(Color.FromArgb(_currentThemeColor.A, _currentThemeColor.R, _currentThemeColor.G, _currentThemeColor.B)));
+                        }
+                        _wallpaperBackground = new WallpaperEngine.WallpaperBackground(_view);
+                    }
+                    _wallpaperBackground.Update(_settings);
+                    _hasImage = true;
+                    return;
+                }
+                if (_wallpaperBackground != null)
+                {
+                    _wallpaperBackground.Dispose();
+                    _wallpaperBackground = null;
+                }
+#endif
                 await SetCanvasBackgroundAsync();
                 var ec = _editorCanvas as DependencyObject;
                 await FindWpfTextViewAsync(ec.GetVisualOrLogicalParent() == null ? _adornmentLayer as DependencyObject : ec);
@@ -328,6 +362,13 @@ namespace ClaudiaIDE
 
         private async Task RefreshBackgroundAsync()
         {
+#if VS_LATEST
+            if (_settings.ImageBackgroundType == ImageBackgroundType.WallpaperEngine)
+            {
+                _wallpaperBackground?.Update(_settings);
+                return;
+            }
+#endif
             await SetCanvasBackgroundAsync();
             var ec = _editorCanvas as DependencyObject;
             await FindWpfTextViewAsync(ec.GetVisualOrLogicalParent() == null ? _adornmentLayer as DependencyObject : ec);

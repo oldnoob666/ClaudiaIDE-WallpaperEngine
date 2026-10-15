@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable"
               xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -175,6 +175,10 @@
                     <CanonicalName>.ClaudiaIDE.OpenSettingsCommand</CanonicalName>
                 </Strings>
             </Button>
+                    <Button guid="guidClaudiaIdePackageCmdSet" id="FollowWallpaperEngineId" priority="0x0180" type="Button">
+                <Parent guid="guidClaudiaIdePackageCmdSet" id="ClaudiaIdeMenuGroup2" />
+                <Strings><ButtonText>跟随 Wallpaper Engine</ButtonText><CanonicalName>.ClaudiaIDE.FollowWallpaperEngineCommand</CanonicalName></Strings>
+            </Button>
         </Buttons>
 
         <!--The bitmaps section is used to define the bitmaps that are used for the commands.-->
@@ -232,6 +236,7 @@
                       value="0x1022" />
             <IDSymbol name="AboutImageId"
                       value="0x0160" />
+            <IDSymbol name="FollowWallpaperEngineId" value="0x0180" />
             <IDSymbol name="OpenSettingsId"
                       value="0x0170" />
         </GuidSymbol>

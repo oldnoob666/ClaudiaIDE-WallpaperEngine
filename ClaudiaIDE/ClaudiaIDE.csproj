@@ -44,6 +44,7 @@
 
   <ItemGroup>
     <PackageReference Include="MessagePack" Version="3.1.7" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
     <PackageReference Include="MetroRadiance.Core" Version="2.4.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Build.Tasks.Core">
       <Version>18.7.1</Version>
@@ -165,6 +166,21 @@
   </ItemGroup>
 
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
+  <ItemGroup>
+    <ProjectReference Include="..\WallpaperQuery\WallpaperQuery.csproj" ReferenceOutputAssembly="false" />
+    <Content Include="..\WallpaperQuery\bin\$(Configuration)\net472\WallpaperQuery.exe">
+      <Link>WallpaperEngine\WallpaperQuery.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\Shared\WallpaperEngine\Player\**\*">
+      <Link>WallpaperEngine\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+  </ItemGroup>
 
   <PropertyGroup>
     <UseCodebase>true</UseCodebase>

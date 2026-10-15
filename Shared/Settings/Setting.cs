@@ -110,6 +110,8 @@ namespace ClaudiaIDE.Settings
         }
 
         public ImageBackgroundType ImageBackgroundType { get; set; }
+        public string WallpaperEngineDirectory { get; set; } = "";
+        public string WallpaperEngineMonitor { get; set; } = "Monitor0";
         public double Opacity { get; set; }
         public PositionV PositionVertical { get; set; }
         public PositionH PositionHorizon { get; set; }
@@ -195,6 +197,8 @@ namespace ClaudiaIDE.Settings
                     settings.ExpandToIDE = solconf.ExpandToIDE;
                     settings.Extensions = solconf.Extensions;
                     settings.ImageBackgroundType = solconf.ImageBackgroundType;
+                    settings.WallpaperEngineDirectory = solconf.WallpaperEngineDirectory;
+                    settings.WallpaperEngineMonitor = solconf.WallpaperEngineMonitor;
                     settings.ImageFadeAnimationInterval = solconf.ImageFadeAnimationInterval;
                     settings.ImageStretch = solconf.ImageStretch;
                     settings.LoopSlideshow = solconf.LoopSlideshow;
@@ -258,6 +262,8 @@ namespace ClaudiaIDE.Settings
             UpdateImageInterval = (TimeSpan)props.Item("UpdateImageInterval").Value;
             Extensions = (string)props.Item("Extensions").Value;
             ImageBackgroundType = (ImageBackgroundType)props.Item("ImageBackgroundType").Value;
+            WallpaperEngineDirectory = (string)props.Item("WallpaperEngineDirectory").Value;
+            WallpaperEngineMonitor = (string)props.Item("WallpaperEngineMonitor").Value;
             ImageFadeAnimationInterval = (TimeSpan)props.Item("ImageFadeAnimationInterval").Value;
             LoopSlideshow = (bool)props.Item("LoopSlideshow").Value;
             ShuffleSlideshow = (bool)props.Item("ShuffleSlideshow").Value;
@@ -324,6 +330,8 @@ namespace ClaudiaIDE.Settings
             ExpandToIDE = solconf.ExpandToIDE;
             Extensions = solconf.Extensions;
             ImageBackgroundType = solconf.ImageBackgroundType;
+            WallpaperEngineDirectory = solconf.WallpaperEngineDirectory;
+            WallpaperEngineMonitor = solconf.WallpaperEngineMonitor;
             ImageFadeAnimationInterval = solconf.ImageFadeAnimationInterval;
             ImageStretch = solconf.ImageStretch;
             LoopSlideshow = solconf.LoopSlideshow;
@@ -476,6 +484,7 @@ namespace ClaudiaIDE.Settings
         WebSingle = 3,
         WebApi = 4,
         SlideshowEach = 5,
+        WallpaperEngine = 6,
     }
 
     [ComVisible(true)]
