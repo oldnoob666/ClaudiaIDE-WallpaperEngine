@@ -6,7 +6,9 @@
 
 给现有背景来源枚举尾部增加 WallpaperEngine，保留已保存的 0–5 编号。添加安装目录（留空自动探测）和显示器（Monitor0）选项。Wallpaper Engine 运行时每两秒通过官方只读命令 `-control getWallpaper -monitor 0` 查询当前选择；未运行时读取 config.json 中当前用户的 general.wallpaperconfig.selectedwallpapers。不使用 recent 历史。实际切换时配置文件会延迟保存，因此不能仅依赖 config.json。
 
-官方命令直接写 Windows 控制台，普通 stdout 重定向无法得到结果。随包的 WallpaperQuery.exe 在独立隐藏控制台中读取结果，再以 UTF-8 返回主扩展。实际素材名以 project.json 为准，兼容本机 CLI 返回中文文件名损坏的情况；查询超时保留上次成功来源。
+官方命令直接写 Windows 控制台，普通 stdout 重定向无法得到结果。随包的 WallpaperQuery.exe 通过 ConPTY 无窗口伪终端接收输出，再以 UTF-8 返回主扩展；启动时设置 CreateNoWindow，不创建再隐藏真实控制台。实际素材名以 project.json 为准，兼容本机 CLI 返回中文文件名损坏的情况。
+
+首屏立即提供已保存的当前壁纸，实时查询在后台更新来源，不占用素材服务锁。查询超时保留可用背景；同一时刻只允许一个查询，设置切换时丢弃旧查询结果。这样不会因为 Wallpaper Engine IPC 暂时无响应而阻塞首屏或素材加载。
 
 共享本地素材服务只监听 127.0.0.1，按当前壁纸项目目录提供资源，使用随机会话路径和目录围栏。独立壁纸页面使用本地打包的 WebWallGL 3.0.0 实时渲染；视频直接循环播放。固定源文件和依赖随 VSIX 分发，运行时不依赖 Node 或 CDN。
 

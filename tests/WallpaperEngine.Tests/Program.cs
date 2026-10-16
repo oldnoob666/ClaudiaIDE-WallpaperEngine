@@ -24,6 +24,30 @@ try
     Check(WallpaperProject.Resolve(root, "MissingUser", "Monitor0") == null, "missing profile never selects another user's wallpaper");
     Check(WallpaperProject.Resolve(root, "TestUser", "Monitor9") == null, "missing monitor never falls back silently");
     Check(WallpaperProject.SafeAssetPath(project, "scene.pkg") == Path.Combine(project, "scene.pkg"), "serve legitimate asset under Chinese path");
+    config[Environment.UserName] = config["TestUser"].DeepClone();
+    File.WriteAllText(Path.Combine(root, "config.json"), config.ToString());
+    using (var firstQuery = new ManualResetEventSlim())
+    using (var releaseQuery = new ManualResetEventSlim())
+    using (var secondQuery = new ManualResetEventSlim())
+    using (var host = new WallpaperHost(project, _ => true, (_, selectedMonitor) => {
+        if (selectedMonitor != "Monitor0") { secondQuery.Set(); return null; }
+        firstQuery.Set(); releaseQuery.Wait(TimeSpan.FromSeconds(5)); return Path.Combine(project, "scene.pkg");
+    }))
+    using (var client = new HttpClient())
+    {
+        host.Configure(root, "Monitor0");
+        client.DefaultRequestHeaders.Add("X-ClaudiaIDE", "1");
+        await client.GetStringAsync(host.BaseUrl + "state");
+        try
+        {
+            Check(firstQuery.Wait(TimeSpan.FromSeconds(2)), "blocked query established before reconfigure");
+            host.Configure(root, "Monitor9");
+            var changed = JObject.Parse(await client.GetStringAsync(host.BaseUrl + "state"));
+            Check((string)changed["id"] == "", "new monitor does not reuse previous monitor state");
+            Check(!secondQuery.Wait(200), "reconfigure cannot start overlapping live queries");
+        }
+        finally { releaseQuery.Set(); }
+    }
     using (var host = new WallpaperHost(project))
     using (var client = new HttpClient())
     {
@@ -52,6 +76,42 @@ try
     Check(WallpaperProject.ResolveEntry(Path.Combine(project, "lossy-cli-name.mp4"))?.EntryPath == Path.Combine(nested, "a b.mp4"), "project metadata preserves actual filename when WE CLI loses leaf-name encoding");
     config[Environment.UserName] = config["TestUser"].DeepClone();
     File.WriteAllText(Path.Combine(root, "config.json"), config.ToString());
+    var liveProject = Path.Combine(root, "实时场景"); Directory.CreateDirectory(liveProject);
+    File.WriteAllText(Path.Combine(liveProject, "scene.pkg"), "live scene");
+    File.WriteAllText(Path.Combine(liveProject, "project.json"), "{\"type\":\"scene\",\"file\":\"scene.pkg\"}");
+    using (var host = new WallpaperHost(project, _ => true, (_, _) => Path.Combine(liveProject, "scene.pkg")))
+    using (var client = new HttpClient())
+    {
+        host.Configure(root, "Monitor0"); client.DefaultRequestHeaders.Add("X-ClaudiaIDE", "1");
+        var selected = JObject.Parse(await client.GetStringAsync(host.BaseUrl + "state"));
+        for (var attempt = 0; (string)selected["title"] != "实时场景" && attempt < 50; attempt++)
+        {
+            await Task.Delay(20); selected = JObject.Parse(await client.GetStringAsync(host.BaseUrl + "state"));
+        }
+        Check((string)selected["title"] == "实时场景", "successful background query replaces saved selection");
+        Check(await client.GetStringAsync((string)selected["source"] + "scene.pkg") == "live scene", "published live state serves matching project assets");
+    }
+    using (var queryStarted = new ManualResetEventSlim())
+    using (var releaseQuery = new ManualResetEventSlim())
+    using (var host = new WallpaperHost(project, _ => true, (_, _) => {
+        queryStarted.Set(); releaseQuery.Wait(TimeSpan.FromSeconds(5)); return null;
+    }))
+    using (var client = new HttpClient())
+    {
+        host.Configure(root, "Monitor0");
+        client.DefaultRequestHeaders.Add("X-ClaudiaIDE", "1");
+        var loading = client.GetStringAsync(host.BaseUrl + "state");
+        try
+        {
+            Check(queryStarted.Wait(TimeSpan.FromSeconds(2)), "live query starts in background");
+            Check(await Task.WhenAny(loading, Task.Delay(500)) == loading, "first wallpaper state does not wait for slow live CLI");
+            var initial = JObject.Parse(await loading);
+            Check((string)initial["type"] == "video", "first state immediately uses saved selection while CLI waits");
+            var asset = client.GetStringAsync((string)initial["source"] + "videos/a%20b.mp4");
+            Check(await Task.WhenAny(asset, Task.Delay(500)) == asset && await asset == "nested video", "slow CLI cannot lock asset serving");
+        }
+        finally { releaseQuery.Set(); }
+    }
     using (var host = new WallpaperHost(project))
     using (var client = new HttpClient())
     {

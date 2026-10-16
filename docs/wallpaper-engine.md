@@ -1,6 +1,6 @@
 # ClaudiaIDE Wallpaper Engine 联动版
 
-本机修改版 3.1.52.4，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
+本机修改版 3.1.52.5，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
 
 ## 当前配置与使用
 
@@ -18,13 +18,13 @@
 
 本版借鉴 DSH 读取 Wallpaper Engine 素材、通过 HTML video / WebWallGL 独立播放的方法，将它接入 ClaudiaIDE 编辑器背景，并增加官方命令检测桌面实时选择。分析见同目录《参考项目拆解.md》。
 
-本机实测：22 项配置解析、路径保护、HTTP 范围和中文/嵌套路径检查通过；保存动态模式后的启动检查通过。真实场景“明日方舟终末地_佩丽卡_时钟”在 VS 编辑区约 30 FPS；真实视频“世界很温柔—《龙族》上杉绘梨衣.mp4”从约 0.3 秒推进到 20.3 秒。已安装扩展跟随 Wallpaper Engine 实际执行场景→视频→场景切换，编辑、保存、隐藏/显示正常。
+本机实测：31 项配置解析、路径保护、HTTP 范围和中文/嵌套路径检查通过；保存动态模式后的启动检查通过。真实场景“明日方舟终末地_佩丽卡_时钟”在 VS 编辑区约 30 FPS；真实视频“世界很温柔—《龙族》上杉绘梨衣.mp4”从约 0.3 秒推进到 20.3 秒。已安装扩展跟随 Wallpaper Engine 实际执行场景→视频→场景切换，编辑、保存、隐藏/显示正常。
 
 这是同一素材的独立播放，进度不与桌面逐帧同步。WebWallGL 是第三方实现，未保证全部工坊场景、特殊脚本或交互效果兼容。应用类壁纸不执行。外部目录若被官方 CLI 返回成乱码，可能无法定位；本机工坊数字目录及中文视频文件名已验证。
 
 ## 文件和排查
 
-- `ClaudiaIDE-WallpaperEngine-3.1.52.4.vsix`：安装包。
+- `ClaudiaIDE-WallpaperEngine-3.1.52.5.vsix`：安装包。
 - `ClaudiaIDE-WallpaperEngine-source.zip`：完整源码；`ClaudiaIDE-WallpaperEngine.patch`：相对官方基线的补丁。
 - `VS编辑区实测.png`：真实 VS 截图；`动态背景叠加验证.png`：独立 WPF 验证截图。
 - `实际联动验证.log`、`播放验证.log`、`自动检查.log`：验证记录。

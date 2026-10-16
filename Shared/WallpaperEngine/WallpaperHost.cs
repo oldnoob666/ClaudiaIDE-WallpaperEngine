@@ -24,18 +24,24 @@ namespace ClaudiaIDE.WallpaperEngine
         private readonly Dictionary<string, WallpaperProject> projects = new Dictionary<string, WallpaperProject>();
         private readonly object gate = new object();
         private readonly string rendererDirectory;
+        private readonly Func<string, bool> engineRunning;
+        private readonly Func<string, string, string> queryWallpaper;
         private string installDirectory = "";
         private string configuredDirectory;
         private string monitor = "Monitor0";
         private object state;
         private DateTime checkedAt;
+        private int configurationVersion;
+        private bool refreshing;
         private bool disposed;
         public string BaseUrl { get; }
         public string PlayerUrl => BaseUrl + "player.html";
 
-        internal WallpaperHost(string rendererDirectory = null)
+        internal WallpaperHost(string rendererDirectory = null, Func<string, bool> engineRunning = null, Func<string, string, string> queryWallpaper = null)
         {
             this.rendererDirectory = rendererDirectory ?? Path.Combine(Path.GetDirectoryName(typeof(WallpaperHost).Assembly.Location), "WallpaperEngine");
+            this.engineRunning = engineRunning ?? IsEngineRunning;
+            this.queryWallpaper = queryWallpaper ?? QueryLiveWallpaper;
             // A dynamic loopback port avoids firewall rules and URL reservations.
             for (var attempt = 0; ; attempt++)
             {
@@ -63,6 +69,7 @@ namespace ClaudiaIDE.WallpaperEngine
                 installDirectory = directory == "" ? DiscoverInstall() : directory; monitor = monitorName;
                 state = null;
                 checkedAt = DateTime.MinValue;
+                configurationVersion++;
             }
         }
 
@@ -90,34 +97,62 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             lock (gate)
             {
-                if (state != null && DateTime.UtcNow - checkedAt < TimeSpan.FromSeconds(2)) return JsonConvert.SerializeObject(state);
-                checkedAt = DateTime.UtcNow;
-                var live = IsEngineRunning();
-                var selected = live ? QueryLiveWallpaper() : null;
-                var project = live ? WallpaperProject.ResolveEntry(selected)
-                    : WallpaperProject.Resolve(installDirectory, Environment.UserName, monitor);
-                // A transient CLI timeout should keep the last successfully queried
-                // wallpaper, rather than jump to stale saved configuration.
-                if (live && selected == null && state != null) return JsonConvert.SerializeObject(state);
-                if (project == null)
-                    state = new { id = "", error = "未找到当前壁纸。请检查 Wallpaper Engine 安装目录、显示器名称和当前壁纸类型。" };
-                else
+                // First paint must not depend on WE's IPC availability. Its last
+                // saved selection is replaced when the background query succeeds.
+                if (state == null) state = CreateState(WallpaperProject.Resolve(installDirectory, Environment.UserName, monitor));
+                if (!disposed && !refreshing && DateTime.UtcNow - checkedAt >= TimeSpan.FromSeconds(2))
                 {
-                    string id;
-                    using (var hash = SHA256.Create())
-                        id = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(project.EntryPath))).Replace("-", "").ToLowerInvariant();
-                    if (!projects.ContainsKey(id))
-                    {
-                        if (projects.Count >= 8) projects.Remove(projects.Keys.First());
-                        projects[id] = project;
-                    }
-                    state = new { id, type = project.Type, title = project.Title, source = BaseUrl + "asset/" + id + "/", entry = project.EntryPath.Substring(project.DirectoryPath.Length + 1).Replace('\\', '/') };
+                    refreshing = true;
+                    checkedAt = DateTime.UtcNow;
+                    var directory = installDirectory;
+                    var selectedMonitor = monitor;
+                    var version = configurationVersion;
+                    _ = Task.Run(() => RefreshState(directory, selectedMonitor, version));
                 }
                 return JsonConvert.SerializeObject(state);
             }
         }
 
-        private bool IsEngineRunning()
+        private void RefreshState(string directory, string selectedMonitor, int version)
+        {
+            try
+            {
+                // Never hold the asset-serving lock during process launch or IPC.
+                var live = engineRunning(directory);
+                var selected = live ? queryWallpaper(directory, selectedMonitor) : null;
+                if (live && selected == null) return; // Retain the last usable state on transient failure.
+                var project = live ? WallpaperProject.ResolveEntry(selected)
+                    : WallpaperProject.Resolve(directory, Environment.UserName, selectedMonitor);
+                lock (gate)
+                    if (!disposed && configurationVersion == version) state = CreateState(project);
+            }
+            catch (Exception error) { Trace.TraceError("ClaudiaIDE wallpaper query: " + error.Message); }
+            finally
+            {
+                lock (gate)
+                {
+                    refreshing = false;
+                    if (configurationVersion == version) checkedAt = DateTime.UtcNow;
+                }
+            }
+        }
+
+        // Called under gate; state and served project snapshots change together.
+        private object CreateState(WallpaperProject project)
+        {
+            if (project == null) return new { id = "", error = "未找到当前壁纸。请检查 Wallpaper Engine 安装目录、显示器名称和当前壁纸类型。" };
+            string id;
+            using (var hash = SHA256.Create())
+                id = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(project.EntryPath))).Replace("-", "").ToLowerInvariant();
+            if (!projects.ContainsKey(id))
+            {
+                if (projects.Count >= 8) projects.Remove(projects.Keys.First());
+                projects[id] = project;
+            }
+            return new { id, type = project.Type, title = project.Title, source = BaseUrl + "asset/" + id + "/", entry = project.EntryPath.Substring(project.DirectoryPath.Length + 1).Replace('\\', '/') };
+        }
+
+        private static bool IsEngineRunning(string directory)
         {
             foreach (var name in new[] { "wallpaper64", "wallpaper32" })
                 foreach (var process in Process.GetProcessesByName(name))
@@ -125,7 +160,7 @@ namespace ClaudiaIDE.WallpaperEngine
                     {
                         try
                         {
-                            if (string.Equals(Path.GetDirectoryName(process.MainModule.FileName), installDirectory.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)) return true;
+                            if (string.Equals(Path.GetDirectoryName(process.MainModule.FileName), directory.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)) return true;
                         }
                         catch (Exception e) when (e is System.ComponentModel.Win32Exception || e is InvalidOperationException) { }
                     }
@@ -134,19 +169,19 @@ namespace ClaudiaIDE.WallpaperEngine
 
         // Called only by the loopback HTTP worker, never by the VS UI thread.
 #pragma warning disable VSTHRD002
-        private string QueryLiveWallpaper()
+        private string QueryLiveWallpaper(string directory, string monitorName)
         {
-            var match = System.Text.RegularExpressions.Regex.Match(monitor, @"^(?:Monitor)?(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var match = System.Text.RegularExpressions.Regex.Match(monitorName, @"^(?:Monitor)?(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (!match.Success) return null;
-            var engine = Path.Combine(installDirectory, "wallpaper64.exe");
-            if (!File.Exists(engine)) engine = Path.Combine(installDirectory, "wallpaper32.exe");
+            var engine = Path.Combine(directory, "wallpaper64.exe");
+            if (!File.Exists(engine)) engine = Path.Combine(directory, "wallpaper32.exe");
             var helper = Path.Combine(rendererDirectory, "WallpaperQuery.exe");
             if (!File.Exists(engine) || !File.Exists(helper)) return null;
             try
             {
                 using (var process = Process.Start(new ProcessStartInfo(helper, "\"" + engine + "\" " + match.Groups[1].Value) {
                     UseShellExecute = false, RedirectStandardOutput = true,
-                    StandardOutputEncoding = new UTF8Encoding(false), WindowStyle = ProcessWindowStyle.Hidden
+                    StandardOutputEncoding = new UTF8Encoding(false), CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
                 }))
                 {
                     var output = process.StandardOutput.ReadToEndAsync();
