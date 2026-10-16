@@ -29,6 +29,7 @@ namespace ClaudiaIDE
         private readonly List<ImageProvider> _imageProviders;
         private readonly Setting _settings = Setting.Instance;
         private readonly IWpfTextView _view;
+        private readonly Func<IWpfTextViewHost> _hostProvider;
         private bool _hasImage = false;
         private ImageProvider _imageProvider;
         private bool _isMainWindow;
@@ -49,13 +50,14 @@ namespace ClaudiaIDE
         /// <param name="view">The <see cref="IWpfTextView" /> upon which the adornment will be drawn</param>
         /// <param name="imageProvider">The <see cref="IImageProvider" /> which provides bitmaps to draw</param>
         /// <param name="setting">The <see cref="Setting" /> contains user image preferences</param>
-        public ClaudiaIDE(IWpfTextView view, List<ImageProvider> imageProvider)
+        public ClaudiaIDE(IWpfTextView view, List<ImageProvider> imageProvider, Func<IWpfTextViewHost> hostProvider = null)
         {
             try
             {
                 _imageProviders = imageProvider;
                 _imageProvider = GetImageProvider();
                 _view = view;
+                _hostProvider = hostProvider;
                 _adornmentLayer = view.GetAdornmentLayer("ClaudiaIDE");
                 _view.LayoutChanged += (s, e) =>
                 {
@@ -146,7 +148,7 @@ namespace ClaudiaIDE
                                 foreach (var grid in parent.Children.OfType<Grid>().Where(g => g.Name == "ClaudiaIdeImage")) grid.Background = null;
                             _wpfTextViewHost.SetValue(Panel.BackgroundProperty, new SolidColorBrush(Color.FromArgb(_currentThemeColor.A, _currentThemeColor.R, _currentThemeColor.G, _currentThemeColor.B)));
                         }
-                        _wallpaperBackground = new WallpaperEngine.WallpaperBackground(_view);
+                        _wallpaperBackground = new WallpaperEngine.WallpaperBackground(_view, _hostProvider);
                     }
                     _wallpaperBackground.Update(_settings);
                     _hasImage = true;

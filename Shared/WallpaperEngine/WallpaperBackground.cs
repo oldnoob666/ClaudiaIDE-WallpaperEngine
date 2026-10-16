@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Media;
 using ClaudiaIDE.Settings;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.Web.WebView2.Core;
@@ -19,6 +20,8 @@ namespace ClaudiaIDE.WallpaperEngine
         private readonly IWpfTextView view;
         private readonly IAdornmentLayer layer;
         private readonly WebView2CompositionControl browser;
+        private readonly Func<IWpfTextViewHost> hostProvider;
+        private WallpaperSurface surface;
         private readonly DispatcherTimer timer;
         private readonly Task initialize;
         private bool disposed;
@@ -27,13 +30,14 @@ namespace ClaudiaIDE.WallpaperEngine
         private int ticks;
         private double opacity;
 
-        public WallpaperBackground(IWpfTextView view)
+        public WallpaperBackground(IWpfTextView view, Func<IWpfTextViewHost> hostProvider = null)
         {
             this.view = view;
+            this.hostProvider = hostProvider;
             layer = view.GetAdornmentLayer("ClaudiaIDE.WallpaperEngine");
             browser = new WebView2CompositionControl { IsHitTestVisible = false, Focusable = false };
-            Resize();
             layer.AddAdornment(AdornmentPositioningBehavior.ViewportRelative, null, this, browser, null);
+            Resize();
             view.ViewportWidthChanged += OnResize;
             view.ViewportHeightChanged += OnResize;
             initialize = InitializeAsync();
@@ -76,6 +80,29 @@ namespace ClaudiaIDE.WallpaperEngine
 
         private void Resize()
         {
+            if (surface == null && hostProvider != null)
+            {
+                try
+                {
+                    var host = hostProvider();
+                    Panel root = null;
+                    var gutter = host?.GetTextViewMargin(PredefinedMarginNames.Left)?.VisualElement;
+                    if (root == null && gutter != null)
+                    {
+                        var common = gutter.FindCommonVisualAncestor(view.VisualElement);
+                        for (var item = common; item != null; item = VisualTreeHelper.GetParent(item))
+                            if (item is Panel panel) { root = panel; break; }
+                    }
+                    if (root != null)
+                    {
+                        layer.RemoveAdornmentsByTag(this);
+                        surface = new WallpaperSurface(root, view, gutter, browser);
+                        Log("Editor surface: " + root.GetType().FullName + "; gutter=" + gutter?.GetType().FullName);
+                    }
+                }
+                catch (ArgumentException) { } // The adapter may not exist during TextViewCreated.
+            }
+            if (surface != null) { surface.Resize(); return; }
             browser.Width = Math.Max(1, view.ViewportWidth);
             browser.Height = Math.Max(1, view.ViewportHeight);
             // Adornment coordinates are text coordinates. Refreshing on a
@@ -94,6 +121,7 @@ namespace ClaudiaIDE.WallpaperEngine
             try
             {
                 var window = Window.GetWindow(view.VisualElement);
+                Resize(); // Also attaches when the editor host becomes available after view creation.
                 await browser.ExecuteScriptAsync("window.wallpaperControl?.opacity(" + opacity.ToString(System.Globalization.CultureInfo.InvariantCulture) + ")");
                 var shouldPause = opacity <= 0 || !view.VisualElement.IsVisible || window?.WindowState == WindowState.Minimized;
                 if (paused != shouldPause)
@@ -104,17 +132,20 @@ namespace ClaudiaIDE.WallpaperEngine
                 if (++ticks % 10 == 0 && Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
                 {
                     Log(await browser.ExecuteScriptAsync("window.wallpaperControl?.diagnostics()"));
-                    var bounds = browser.TransformToAncestor(view.VisualElement).TransformBounds(new Rect(browser.RenderSize));
+                    var bounds = browser.TransformToAncestor(surface?.Root ?? view.VisualElement).TransformBounds(new Rect(browser.RenderSize));
                     Log("Placement: " + Newtonsoft.Json.JsonConvert.SerializeObject(new {
                         viewportLeft = view.ViewportLeft, viewportTop = view.ViewportTop,
                         viewportWidth = view.ViewportWidth, viewportHeight = view.ViewportHeight,
-                        left = bounds.Left, top = bounds.Top, width = bounds.Width, height = bounds.Height
+                        left = bounds.Left, top = bounds.Top, width = bounds.Width, height = bounds.Height,
+                        includesGutter = surface != null
                     }));
                 }
-                if (ticks == 20 && Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
+                if (ticks == 20 && view.VisualElement.IsVisible && Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
                 {
-                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Max(1, view.VisualElement.ActualWidth), (int)Math.Max(1, view.VisualElement.ActualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-                    bitmap.Render(view.VisualElement);
+                    FrameworkElement target = surface?.Root ?? view.VisualElement;
+                    var dpi = VisualTreeHelper.GetDpi(target);
+                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Max(1, Math.Ceiling(target.ActualWidth * dpi.DpiScaleX)), (int)Math.Max(1, Math.Ceiling(target.ActualHeight * dpi.DpiScaleY)), dpi.PixelsPerInchX, dpi.PixelsPerInchY, System.Windows.Media.PixelFormats.Pbgra32);
+                    bitmap.Render(target);
                     var png = new System.Windows.Media.Imaging.PngBitmapEncoder();
                     png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
                     using (var file = File.Create(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudiaIDE", "editor-check.png"))) png.Save(file);
@@ -149,6 +180,7 @@ namespace ClaudiaIDE.WallpaperEngine
             view.ViewportWidthChanged -= OnResize;
             view.ViewportHeightChanged -= OnResize;
             layer.RemoveAdornmentsByTag(this);
+            surface?.Dispose();
             browser.Dispose();
         }
     }

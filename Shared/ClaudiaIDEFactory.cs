@@ -8,6 +8,7 @@ using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
+using Microsoft.VisualStudio.Editor;
 
 namespace ClaudiaIDE
 {
@@ -27,6 +28,7 @@ namespace ClaudiaIDE
         private List<ImageProvider> ImageProviders;
 
         [Import(typeof(SVsServiceProvider))] internal IServiceProvider ServiceProvider { get; set; }
+        [Import] internal IVsEditorAdaptersFactoryService EditorAdapters { get; set; }
 
         /// <summary>
         ///     Defines the adornment layer for the scarlet adornment. This layer is ordered
@@ -128,7 +130,10 @@ namespace ClaudiaIDE
                             break;
                     }
 
-            new ClaudiaIDE(textView, ImageProviders);
+            new ClaudiaIDE(textView, ImageProviders, () => {
+                var adapter = EditorAdapters.GetViewAdapter(textView);
+                return adapter == null ? null : EditorAdapters.GetWpfTextViewHost(adapter);
+            });
         }
     }
 
