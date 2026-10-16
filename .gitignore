@@ -106,3 +106,10 @@ Backup*/
 UpgradeLog*.XML
 
 .vs/
+
+# Build output and local runtime configuration
+**/[Bb]in/
+.env
+.env.*
+*.claudiaide
+node_modules/

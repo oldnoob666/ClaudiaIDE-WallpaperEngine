@@ -1,59 +1,58 @@
-ClaudiaIDE
-==========
+# ClaudiaIDE-WallpaperEngine
 
-`ClaudiaIDE` is a Visual Studio extension for displaying images in the background of the editor.
-![claudiaide image](./Images/home.png)
+让 Visual Studio 2022 的编辑器背景跟随 Wallpaper Engine 当前壁纸，支持视频和部分动态场景。
 
-## Features
+这是基于 [buchizo/ClaudiaIDE](https://github.com/buchizo/ClaudiaIDE) Release3.1.52 的**非官方衍生版**，由 [oldnoob666](https://github.com/oldnoob666) 维护。原始背景功能来自 ClaudiaIDE；本仓库增加 Wallpaper Engine 联动、动态播放、滚动固定和左侧行号/断点栏覆盖。与 ClaudiaIDE 原作者、Wallpaper Engine 官方没有隶属关系。
 
-- Display images in the background of Visual Studio
-  - Background of windows displaying text, such as text editors and XAML editors (some editors and windows are not supported)
-  - Or the background of Visual Studio itself
-- Selectable display formats
-  - Display a specified image (local file path or URL)
-  - Slideshow display of images under a specified folder
-  - Display different images per text editor
-  - Slideshow display of different images per text editor
-  - Periodically call a Web API to display images from URLs in a JSON file as a slideshow
-- Detailed image settings
-  - Adjust display position
-  - Adjust stretch
-  - Adjust opacity and zoom level
-  - Tile display
-  - Edge blur processing
-- Display area adjustments
-  - Text editor only or Visual Studio itself
-  - Fixed scroll background color adjustment
-  - Scrollbar transparency
-  - Editor background color change
-- Supported file formats
-  - Image files such as PNG, JPG, GIF
-  - Animated GIF
-  - Video files (MP4)
-- Light theme and dark theme support
-  - Individual settings for each
-  - Can follow the OS system theme settings
-- Solution-specific configuration using `.claudiaide` file
+## 功能
 
-For setting details, please refer to [Settings](https://github.com/buchizo/ClaudiaIDE/wiki/Settings).
+- 跟随指定显示器的 Wallpaper Engine 当前选择；切换壁纸后通常数秒内更新。
+- 视频静音循环播放，动态场景通过 WebWallGL 渲染。
+- 背景覆盖代码区及左侧行号、断点栏；上下、左右滚动代码时背景保持原位。
+- 支持透明度、浅色/深色主题设置和 `Ctrl+Shift+Alt+C` 显示/隐藏。
+- 保留 ClaudiaIDE 原有图片和幻灯片模式；新建受支持的文本编辑视图也会显示背景。
+- 隐藏背景、最小化 VS 或视图不可见时暂停动画；关闭编辑视图时释放对应浏览器。
 
-## What's new
+## 安装与使用
 
-- Ver 3.1.16 Experimental support about animation gif and mp4 video file play in background.
-- Ver 3.1.7 Support OS color theme setting and dark theme setting.
-- Ver 3.0.1 The ClaudiaIDE has been split into two Visual Studio versions, because the older version that needs to be resolved dependency of EnvDTE in Visual Studio 2022.
-- Ver 3.0.0 support Visual Studio 2022 preview 1. However unfortunately drop off support for Visual Studio 2017. If you want support VS2017 ver, you can try use [ver 2.2.19](https://github.com/buchizo/ClaudiaIDE/releases/tag/Release2.2.19). Now mainstream is support Visual Studio 2019 and 2022 only.
+目前仓库提供源码，尚未发布 GitHub Release 安装包。按下方步骤构建，双击生成的 `ClaudiaIDE.vsix`，按安装器提示关闭 Visual Studio 并完成安装。
 
-## Installation
+需要 Windows、Visual Studio 2022、[WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)、已安装的 Wallpaper Engine 以及本机可读取的壁纸素材。当前只验证了 Windows x64 / VS 2022；仓库保留的 VS 2019 工程不属于此次联动功能的验证范围。
 
-- [Installation and support versions](https://github.com/buchizo/ClaudiaIDE/wiki/Installation)
+本版保留 ClaudiaIDE 扩展标识，按替换版使用。安装器若拒绝覆盖现有版本，先在扩展管理器卸载原版，再安装本版；不要同时启用两个版本。
 
-## Settings
+1. 在 Wallpaper Engine 中应用一张视频或场景壁纸。
+2. 在 VS 中打开“扩展 → ClaudiaIDE → 打开设置”，确认 Wallpaper Engine 安装目录和显示器名称（例如 `Monitor0`）。自动发现失败时手动指定 Steam 库中的 `steamapps\common\wallpaper_engine` 目录。
+3. 点击“扩展 → ClaudiaIDE → 跟随 Wallpaper Engine”，启用浅色和深色主题下的联动模式。
+4. 打开代码/文本文件，在 ClaudiaIDE 设置中调整不透明度。切回背景来源 `Single` 并保存即可恢复普通图片。
 
-- [Settings](https://github.com/buchizo/ClaudiaIDE/wiki/Settings)
+Wallpaper Engine 未运行时，使用其配置文件最后保存的选择。各编辑视图播放同一素材，但播放进度不与桌面逐帧同步。
 
-## Release notes
+## 从源码构建
 
-- [Releases](https://github.com/buchizo/ClaudiaIDE/releases)
-- [Notes](https://github.com/buchizo/ClaudiaIDE/wiki/Release-notes)
+安装 Visual Studio 2022 的“Visual Studio 扩展开发”工作负载及 .NET Framework 4.7.2 targeting pack。测试工程另需 .NET 9 SDK。在 **Developer PowerShell for VS 2022** 中进入源码根目录：
+
+```powershell
+MSBuild.exe ClaudiaIDE\ClaudiaIDE.csproj /restore /p:Configuration=Release /v:minimal /nologo
+dotnet run --project tests\WallpaperEngine.Tests
+```
+
+安装包位于 `ClaudiaIDE\bin\Release\net472\ClaudiaIDE.vsix`。构建会还原 NuGet 依赖；播放器和查询工具随包分发，运行时不需要 Node.js、npm 或 CDN。
+
+## 已知限制
+
+- WebWallGL 是第三方场景渲染器，并非所有工坊场景、脚本或交互效果都兼容；不执行应用类壁纸。
+- 每个编辑视图有自己的播放器，多个标签页或多个 VS 进程会增加内存和 GPU 占用。目前隐藏视图暂停播放但仍保留资源，后续再优化。
+- 动态背景覆盖受支持的文本编辑器窗格，不覆盖解决方案资源管理器等整个 VS 界面。
+- 日志位于 `%LOCALAPPDATA%\ClaudiaIDE\WallpaperEngine.log`，WebView2 数据位于 `%LOCALAPPDATA%\ClaudiaIDE\WebView2`。
+
+详细使用和排查见 [联动说明](docs/wallpaper-engine.md)，实现参考见 [参考项目拆解](docs/参考项目拆解.md)。`WORK-LOG.md` 和设计文档保留开发过程中的历史验证记录，文中“本机”结果不代表所有环境都已验证。
+
+## 来源与许可证
+
+- **ClaudiaIDE**：原作者 [buchizo](https://github.com/buchizo)，基线提交 `23d555d0a817c3deee34961bff18412c9e26b5b0`。保留原提交历史、署名和 [Ms-PL 许可证](LICENSE)，原始说明见 [README.upstream.md](README.upstream.md)。本仓库对 ClaudiaIDE 的新增和修改代码同样按 Ms-PL 分发。
+- **WebWallGL 3.0.0**：由 [oneincase/webwallgl](https://github.com/oneincase/webwallgl) 提供场景渲染，按 [MIT 许可证](Shared/WallpaperEngine/Player/WebWallGL-LICENSE.txt) 分发。
+- **设计参考**：[elysia395/dsh-wallpaper-engine](https://github.com/elysia395/dsh-wallpaper-engine)，参考提交 `01fbb8b8e66fd7e405e9c878d18dbd456187f111`，用于理解壁纸素材读取及浏览器播放方式。
+
+其他 NuGet 依赖遵循各自许可证。仓库不包含 Wallpaper Engine 程序或用户的工坊壁纸素材；这些素材的权利归各自作者。上游图片、图标及原有声明随源代码保留，软件许可证不授予商标权。GitHub 的 Sponsor 链接沿用上游配置，支持的是原作者 buchizo。
 

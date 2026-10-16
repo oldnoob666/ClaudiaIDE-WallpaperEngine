@@ -1,11 +1,11 @@
 # ClaudiaIDE Wallpaper Engine 联动版
 
-本机修改版 3.1.52.9，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
+非官方联动版 3.1.52.9，基于 ClaudiaIDE Release3.1.52，面向 Visual Studio 2022。保留原扩展身份，作为原版的替换版使用；未发布到 Marketplace。安装和许可证说明见仓库首页。
 
-## 当前配置与使用
+## 配置与使用
 
-- 浅色/深色主题均已保存 `WallpaperEngine` 模式，不透明度 `0.35`。
-- 安装目录：`D:\SteamLibrary\steamapps\common\wallpaper_engine`；跟随 `Monitor0`。
+- 点击下述联动菜单可将浅色/深色主题均设为 `WallpaperEngine` 模式，默认不透明度 `0.35`。
+- 安装目录留空时自动定位；失败时填写你的 Steam 库中 `steamapps\common\wallpaper_engine` 的实际目录。显示器默认跟随 `Monitor0`，可按实际配置修改。
 - 动态背景显示在代码编辑区。`Ctrl+Shift+Alt+C` 显示/隐藏背景。
 - 菜单“扩展 → ClaudiaIDE → 跟随 Wallpaper Engine”可重新启用联动并保存两套主题的模式。
 - 菜单“扩展 → ClaudiaIDE → 打开设置”可调整透明度、目录和显示器；背景来源选 `Single` 并保存可恢复普通图片。
@@ -22,7 +22,9 @@
 
 这是同一素材的独立播放，进度不与桌面逐帧同步。WebWallGL 是第三方实现，未保证全部工坊场景、特殊脚本或交互效果兼容。应用类壁纸不执行。外部目录若被官方 CLI 返回成乱码，可能无法定位；本机工坊数字目录及中文视频文件名已验证。
 
-## 文件和排查
+## 本地验证产物和排查
+
+下面的文件名指开发期间生成的本地交付物，不表示仓库已附带这些文件或已发布 Release。源码构建产物位置见下节。
 
 - `ClaudiaIDE-WallpaperEngine-3.1.52.9.vsix`：安装包。
 - `ClaudiaIDE-WallpaperEngine-source.zip`：完整源码；`ClaudiaIDE-WallpaperEngine.patch`：相对官方基线的补丁。
