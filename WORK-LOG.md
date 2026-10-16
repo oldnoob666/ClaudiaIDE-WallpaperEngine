@@ -33,3 +33,11 @@ Replaced real console allocation with ConPTY. The broker starts with CreateNoWin
 First state now serves saved configuration immediately. Live queries run outside the state/asset lock, publish only for the current settings generation, retain usable state on failure, and share one in-flight flag across reconfiguration. Slow-query regression failed before the change and passes after. Independent review caught a reconfiguration overlap; reproduced it with a failing check and fixed it.
 
 31 resolver/HTTP/concurrency checks and net472 startup probe pass. Installed .5 through VSIXInstaller (exit0). Fresh WallpaperSmoke console project: Program.cs opened12:41:55, player12:41:56, playing12:41:58 (~3 seconds after opening). Scene ~30 FPS. Global console/terminal SHOW watcher around VS startup ran45 seconds with zero events. User-owned WE process was left running; wallpaper selection unchanged in this repair.
+
+## 2026-10-16: pin dynamic wallpaper to viewport (3.1.52.6)
+
+User screenshot/video showed the wallpaper scrolling out of the editor. Original static mode uses the editor host Background VisualBrush. The dynamic branch instead called Update->Resize on each layout, resetting a ViewportRelative adornment to Canvas(0,0) in text coordinates. VS uses ViewportLeft/ViewportTop as the visible text-coordinate origin.
+
+Set browser Canvas.Left/Top to current ViewportLeft/ViewportTop; preserve the same player instance and viewport dimensions. Added opt-in placement diagnostics alongside existing stats. Regression probe invokes production Resize and checks actual WPF-transformed bounds under a simulated text layer: baseline passed, scrolling300px failed at y=-300 before the fix; after the fix, vertical, horizontal, resize and return cases all pass.
+
+Installed .6 through official VSIXInstaller (exit0), after saving user's Program.cs edits. Actual editor commands scrolled15+80 lines down: viewportTop255 and1615, browser origin approximately(0,-0.333) due to layout rounding, full viewport coverage. Horizontal test viewportLeft9976.75, browser origin approximately(-0.082,0). Animation remained ~30 FPS. Restored original document/caret at line34; actual viewportTop328, browser origin(0,0). Independent focused review found no material issue. Screenshot diagnostics from hidden tabs can be blank; placement logs are the validation evidence for this fix.

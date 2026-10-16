@@ -78,8 +78,10 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             browser.Width = Math.Max(1, view.ViewportWidth);
             browser.Height = Math.Max(1, view.ViewportHeight);
-            Canvas.SetLeft(browser, 0);
-            Canvas.SetTop(browser, 0);
+            // Adornment coordinates are text coordinates. Refreshing on a
+            // layout must retain the viewport offset, rather than reset it.
+            Canvas.SetLeft(browser, view.ViewportLeft);
+            Canvas.SetTop(browser, view.ViewportTop);
         }
         private void OnResize(object sender, EventArgs e) => Resize();
 
@@ -100,7 +102,15 @@ namespace ClaudiaIDE.WallpaperEngine
                     paused = shouldPause;
                 }
                 if (++ticks % 10 == 0 && Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
+                {
                     Log(await browser.ExecuteScriptAsync("window.wallpaperControl?.diagnostics()"));
+                    var bounds = browser.TransformToAncestor(view.VisualElement).TransformBounds(new Rect(browser.RenderSize));
+                    Log("Placement: " + Newtonsoft.Json.JsonConvert.SerializeObject(new {
+                        viewportLeft = view.ViewportLeft, viewportTop = view.ViewportTop,
+                        viewportWidth = view.ViewportWidth, viewportHeight = view.ViewportHeight,
+                        left = bounds.Left, top = bounds.Top, width = bounds.Width, height = bounds.Height
+                    }));
+                }
                 if (ticks == 20 && Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
                 {
                     var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Max(1, view.VisualElement.ActualWidth), (int)Math.Max(1, view.VisualElement.ActualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);

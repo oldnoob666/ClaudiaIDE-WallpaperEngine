@@ -1,6 +1,6 @@
 # ClaudiaIDE Wallpaper Engine 联动版
 
-本机修改版 3.1.52.5，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
+本机修改版 3.1.52.6，基于 ClaudiaIDE Release3.1.52，安装到 Visual Studio Community 2022。保留原扩展身份；这是本地修改，未发布到 Marketplace。
 
 ## 当前配置与使用
 
@@ -12,7 +12,7 @@
 
 启动 Wallpaper Engine 并切换壁纸，编辑区通常约 2–4 秒跟随。Wallpaper Engine 未运行时，显示配置文件最后保存的选择。扩展只执行查询命令。
 
-文字位于背景上方。视频静音循环播放，场景目标 30 FPS。隐藏背景、最小化 VS、不可见的视图会暂停动画；关闭编辑视图释放浏览器。
+壁纸固定覆盖编辑区视口，上下、左右滚动只移动代码；背景不随文档移走。文字位于背景上方。视频静音循环播放，场景目标 30 FPS。隐藏背景、最小化 VS、不可见的视图会暂停动画；关闭编辑视图释放浏览器。
 
 ## 实现与验证
 
@@ -24,7 +24,7 @@
 
 ## 文件和排查
 
-- `ClaudiaIDE-WallpaperEngine-3.1.52.5.vsix`：安装包。
+- `ClaudiaIDE-WallpaperEngine-3.1.52.6.vsix`：安装包。
 - `ClaudiaIDE-WallpaperEngine-source.zip`：完整源码；`ClaudiaIDE-WallpaperEngine.patch`：相对官方基线的补丁。
 - `VS编辑区实测.png`：真实 VS 截图；`动态背景叠加验证.png`：独立 WPF 验证截图。
 - `实际联动验证.log`、`播放验证.log`、`自动检查.log`：验证记录。
