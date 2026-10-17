@@ -16,6 +16,8 @@
 
 ## 安装与使用
 
+**请使用 3.1.52.12 或更新版本。3.1.52.10 存在切换标签时导致 VS 崩溃的回归，已在 3.1.52.12 修复。**
+
 目前仓库提供源码，尚未发布 GitHub Release 安装包。按下方步骤构建，双击生成的 `ClaudiaIDE.vsix`，按安装器提示关闭 Visual Studio 并完成安装。
 
 需要 Windows、Visual Studio 2022、[WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)、已安装的 Wallpaper Engine 以及本机可读取的壁纸素材。当前只验证了 Windows x64 / VS 2022；仓库保留的 VS 2019 工程不属于此次联动功能的验证范围。

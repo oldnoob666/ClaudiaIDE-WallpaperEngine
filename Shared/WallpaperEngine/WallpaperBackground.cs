@@ -26,9 +26,12 @@ namespace ClaudiaIDE.WallpaperEngine
         private readonly DispatcherTimer timer;
         private Task initialize;
         private Window observedWindow;
+        private DispatcherOperation pendingUpdate;
+        private bool releasePending;
         private bool configured;
         private bool ready;
         private bool disposed;
+        private Task disposal = Task.CompletedTask;
         private int ticks;
         private double opacity;
 
@@ -46,7 +49,22 @@ namespace ClaudiaIDE.WallpaperEngine
             timer.Tick += OnTick;
         }
 
-        private bool IsCurrent(WebView2CompositionControl player) => !disposed && ReferenceEquals(browser, player);
+        private bool IsCurrent(WebView2CompositionControl player) => !disposed && !releasePending && ReferenceEquals(browser, player);
+
+        private void QueueUpdate()
+        {
+            if (disposed || pendingUpdate != null) return;
+            // IsVisibleChanged runs inside WPF's inherited-property walk. It
+            // must never add/remove visual children while that walk enumerates
+            // the editor grid (VS has further margins after the text view).
+            pendingUpdate = view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => {
+                pendingUpdate = null;
+                if (disposed) return;
+                if (releasePending) { releasePending = false; ReleasePlayer(); }
+                UpdateVisibility();
+                Resize();
+            }));
+        }
 
         private void ObserveWindow()
         {
@@ -87,15 +105,14 @@ namespace ClaudiaIDE.WallpaperEngine
             visual.Opacity = ready ? opacity : 0;
         }
 
-        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateVisibility();
-        private void OnLoaded(object sender, RoutedEventArgs e) => UpdateVisibility();
+        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => QueueUpdate();
+        private void OnLoaded(object sender, RoutedEventArgs e) => QueueUpdate();
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            ReleasePlayer();
-            if (observedWindow != null) observedWindow.StateChanged -= OnWindowStateChanged;
-            observedWindow = null;
+            releasePending = true;
+            QueueUpdate();
         }
-        private void OnWindowStateChanged(object sender, EventArgs e) => UpdateVisibility();
+        private void OnWindowStateChanged(object sender, EventArgs e) => QueueUpdate();
 
         private async Task InitializeAsync(WebView2CompositionControl player)
         {
@@ -146,8 +163,7 @@ namespace ClaudiaIDE.WallpaperEngine
             WallpaperHost.Instance.Configure(setting.WallpaperEngineDirectory, setting.WallpaperEngineMonitor);
             opacity = setting.IsHidden ? 0 : Math.Max(0, Math.Min(1, setting.Opacity));
             configured = true;
-            UpdateVisibility();
-            Resize();
+            QueueUpdate();
         }
 
         private void Resize()
@@ -183,7 +199,7 @@ namespace ClaudiaIDE.WallpaperEngine
             Canvas.SetLeft(visual, view.ViewportLeft);
             Canvas.SetTop(visual, view.ViewportTop);
         }
-        private void OnResize(object sender, EventArgs e) => Resize();
+        private void OnResize(object sender, EventArgs e) => QueueUpdate();
 
         private void OnTick(object sender, EventArgs e) => Microsoft.VisualStudio.Threading.TplExtensions.Forget(UpdatePlaybackAsync());
 
@@ -256,10 +272,19 @@ namespace ClaudiaIDE.WallpaperEngine
             catch (UnauthorizedAccessException) { }
         }
 
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return disposal;
+        }
+
         public void Dispose()
         {
             if (disposed) return;
             disposed = true;
+            timer.Stop();
+            pendingUpdate?.Abort();
+            pendingUpdate = null;
             view.ViewportWidthChanged -= OnResize;
             view.ViewportHeightChanged -= OnResize;
             view.VisualElement.IsVisibleChanged -= OnVisibilityChanged;
@@ -267,7 +292,9 @@ namespace ClaudiaIDE.WallpaperEngine
             view.VisualElement.Unloaded -= OnUnloaded;
             if (observedWindow != null) observedWindow.StateChanged -= OnWindowStateChanged;
             observedWindow = null;
-            ReleasePlayer();
+            // View.Closed may also arrive during VS's visual-tree teardown.
+            // Invalidate callbacks now; detach/dispose only after the walk.
+            disposal = view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ReleasePlayer)).Task;
             timer.Tick -= OnTick;
         }
     }

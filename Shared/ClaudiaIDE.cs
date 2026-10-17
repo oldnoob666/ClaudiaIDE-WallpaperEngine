@@ -156,8 +156,19 @@ namespace ClaudiaIDE
                 }
                 if (_wallpaperBackground != null)
                 {
-                    _wallpaperBackground.Dispose();
+                    // Restore the old surface before ordinary-image styling;
+                    // native/visual cleanup is deferred out of WPF tree walks.
+                    var retiring = _wallpaperBackground;
+                    await retiring.DisposeAsync();
+                    if (!ReferenceEquals(_wallpaperBackground, retiring)) return;
                     _wallpaperBackground = null;
+                    if (_settings.ImageBackgroundType == ImageBackgroundType.WallpaperEngine)
+                    {
+                        // Settings may change again while cleanup yields to the
+                        // dispatcher. Route using the current mode, not the old one.
+                        await ChangeImageAsync();
+                        return;
+                    }
                 }
 #endif
                 await SetCanvasBackgroundAsync();

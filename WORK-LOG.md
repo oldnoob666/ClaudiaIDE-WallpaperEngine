@@ -1,5 +1,13 @@
 # Execution ledger
 
+## 2026-10-17: fix multi-tab visibility-walk crash (3.1.52.12)
+
+User reported VS exiting when switching script tabs after installing .10. Windows Application event 1026 recorded ArgumentOutOfRangeException at Grid.GetVisualChild -> InvalidateForceInheritPropertyOnChildren -> OnIsVisibleChanged, coinciding with player release. The .10 implementation removed the earlier background child synchronously inside the text view's inherited IsVisibleChanged callback while WPF was traversing a cached child count. The original probe placed text last and missed this layout. Adding a trailing scrollbar/margin sibling reproduced the exact exception before the fix.
+
+Lifecycle events now coalesce work on DispatcherPriority.Background, outside the current WPF property traversal. Unload immediately invalidates old callbacks but defers native/visual teardown; close also defers teardown. Switching to ordinary image mode awaits that cleanup before replacement styling. Review identified a settings-change race across this new await; cleanup now checks instance identity and reroutes by the current mode before applying static styling.
+
+The regression with trailing siblings passes after the fix, including 60 alternating switches and 100 same-turn visibility changes. Existing resolver/HTTP, player script, viewport/gutter and startup checks remain covered. Installed .12 through the official installer, exit 0. Real VS 2022 smoke used an independent project with 12 script files, 24 keyboard switches visiting all 12, mouse tab clicks and close actions; VS remained responsive, wallpaper restored, and no new Application 1000/1026 crash events appeared during the test. No user Unity project was edited. Focused independent review found no remaining important issue.
+
 ## 2026-10-17: visible-view lifecycle and first-frame reveal (3.1.52.10)
 
 Hidden views previously allocated WebView2 immediately and only paused playback on a timer. Players now exist only for loaded, visible editors in non-minimized windows with enabled, nonzero-opacity backgrounds. Visibility/unload/window events dispose native controls immediately, stop polling and restore editor/gutter brushes. Returning recreates a player using the shared environment; browser identity guards reject stale initialization continuations. Visible split panes remain independent.

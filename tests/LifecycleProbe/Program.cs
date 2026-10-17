@@ -51,6 +51,11 @@ internal static class Program
             Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
             Root.ColumnDefinitions.Add(new ColumnDefinition());
             Grid.SetColumn(Text, 1); Root.Children.Add(Gutter); Root.Children.Add(Text); Text.Children.Add(layer);
+            // VS has sibling margins/scrollbars after the text view. Removing
+            // the earlier wallpaper child during inherited visibility walks
+            // invalidates WPF's cached visual-child count for this grid.
+            var trailingMargin = new Border { Width = 12, HorizontalAlignment = HorizontalAlignment.Right, Background = Brushes.DimGray };
+            Grid.SetColumn(trailingMargin, 1); Root.Children.Add(trailingMargin);
             Text.Children.Add(new TextBlock { Text = "// wallpaper stays behind editor text\nclass Example\n{\n    int answer = 42;\n}", FontSize = 18, Foreground = Brushes.White, Margin = new Thickness(12) });
             Gutter.Children.Add(new TextBlock { Text = "1\n2\n3\n4\n5", FontSize = 18, Foreground = Brushes.LightGray, Margin = new Thickness(10, 12, 0, 0) });
             var adornment = new Proxy(typeof(IAdornmentLayer), call => {
@@ -112,14 +117,16 @@ internal static class Program
                     Check(Visual(first.Background).Opacity == 0 && abandoned.DefaultBackgroundColor.A == 0, "browser is transparent and concealed before asynchronous initialization");
                     Check(first.ViewBackground == Brushes.Black && first.Gutter.Background == Brushes.Black, "original theme stays intact until first frame");
                     first.Root.Visibility = Visibility.Collapsed;
-                    Check(Browser(first.Background) == null, "hide during initialization immediately releases the player");
+                    await Until(() => Task.FromResult(Browser(first.Background) == null), "hide during initialization releases player after visibility walk");
                     first.Root.Visibility = Visibility.Visible;
+                    await Until(() => Task.FromResult(Browser(first.Background) != null), "return schedules fresh player outside visibility walk");
                     Check(Browser(first.Background) != null && Browser(first.Background) != abandoned, "rapid return creates a fresh player");
                     await Ready(first.Background, "initial scene");
                     if (args.Length > 3 && args[3] == "--inspect") await Task.Delay(20000);
                     Check(Browser(second.Background) == null, "hidden tab never initializes alongside active editor");
                     var released = Browser(first.Background);
                     first.Root.Visibility = Visibility.Collapsed;
+                    await Until(() => Task.FromResult(Browser(first.Background) == null), "hide with trailing scrollbar sibling completes without WPF child-index corruption");
                     Check(Browser(first.Background) == null && first.ViewBackground == Brushes.Black, "hidden tab releases browser and restores editor brushes");
                     Check(!((System.Windows.Threading.DispatcherTimer)Field(first.Background, "timer")).IsEnabled, "hidden tab has no playback polling timer");
                     bool disposed = false;
@@ -138,21 +145,38 @@ internal static class Program
                     await Ready(first.Background, "split editor");
                     Check(Browser(first.Background) != null && Browser(second.Background) != null, "two visible split editors both retain playback");
                     setting.IsHidden = true; Update(first.Background, setting); Update(second.Background, setting);
+                    await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) == null), "hide command drains queued lifecycle work");
                     Check(Browser(first.Background) == null && Browser(second.Background) == null, "hide command releases all visible players");
                     setting.IsHidden = false; Update(first.Background, setting); Update(second.Background, setting);
                     await Ready(first.Background, "show command");
                     window.WindowState = WindowState.Minimized;
-                    Check(Browser(first.Background) == null && Browser(second.Background) == null, "minimize releases players without polling delay");
+                    await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) == null), "minimize releases players on next dispatcher turn");
                     window.WindowState = WindowState.Normal;
                     await Ready(first.Background, "window restore");
                     panels.Children.Remove(first.Root);
                     await Until(() => Task.FromResult(Browser(first.Background) == null), "unloaded editor releases player");
                     panels.Children.Add(first.Root);
                     await Ready(first.Background, "reloaded editor");
-                    ((IDisposable)first.Background).Dispose();
+                    for (int i = 0; i < 30; i++)
+                    {
+                        first.Root.Visibility = Visibility.Collapsed; second.Root.Visibility = Visibility.Visible;
+                        await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) != null), "stress switch to second " + i);
+                        second.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible;
+                        await Until(() => Task.FromResult(Browser(second.Background) == null && Browser(first.Background) != null), "stress switch to first " + i);
+                    }
+                    await Ready(first.Background, "after rapid switching");
+                    var retained = Browser(first.Background);
+                    for (int i = 0; i < 100; i++) { first.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible; }
+                    await Ready(first.Background, "coalesced visibility changes");
+                    Check(Browser(first.Background) == retained, "same-turn visibility changes coalesce without browser churn");
+                    await (Task)BackgroundType.GetMethod("DisposeAsync").Invoke(first.Background, null);
+                    Check(first.ViewBackground == Brushes.Black && first.Gutter.Background == Brushes.Black, "mode transition awaits old brush restoration");
+                    first.ViewBackground = Brushes.DarkBlue; first.Gutter.Background = Brushes.DarkBlue;
                     first.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible;
+                    await Until(() => Task.FromResult(Browser(first.Background) == null), "close drains deferred player disposal");
                     Check(Browser(first.Background) == null, "disposed editor cannot resurrect from a visibility event");
-                    Check(first.ViewBackground == Brushes.Black, "final disposal restores editor background");
+                    await Task.Delay(50);
+                    Check(first.ViewBackground == Brushes.DarkBlue && first.Gutter.Background == Brushes.DarkBlue, "completed disposal cannot overwrite replacement-mode brushes");
                 }
                 catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
                 finally { window.Close(); }
