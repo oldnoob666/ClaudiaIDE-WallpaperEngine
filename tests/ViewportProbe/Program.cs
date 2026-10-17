@@ -62,6 +62,8 @@ internal static class Program
             var background = FormatterServices.GetUninitializedObject(type);
             type.GetField("view", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(background, view.GetTransparentProxy());
             type.GetField("browser", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(background, browser);
+            type.GetField("visual", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(background, browser);
+            type.GetField("ready", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(background, true);
             var place = type.GetMethod("Resize", BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var position in new[] { new Point(0, 0), new Point(0, 300), new Point(180, 2400), new Point(0, 0) })
             {

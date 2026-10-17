@@ -1,5 +1,15 @@
 # Execution ledger
 
+## 2026-10-17: visible-view lifecycle and first-frame reveal (3.1.52.10)
+
+Hidden views previously allocated WebView2 immediately and only paused playback on a timer. Players now exist only for loaded, visible editors in non-minimized windows with enabled, nonzero-opacity backgrounds. Visibility/unload/window events dispose native controls immediately, stop polling and restore editor/gutter brushes. Returning recreates a player using the shared environment; browser identity guards reject stale initialization continuations. Visible split panes remain independent.
+
+White startup frames were possible because transparency was configured after native initialization and opacity applied on a later timer tick. The control now starts transparent inside a concealed WPF container; original editor brushes remain until a decoded video frame or WebWallGL's first rendered frame. Reveal uses the configured opacity immediately. Videos skip WebWallGL entirely; scenes load it asynchronously after selection. Cold initialization and complex scene assets still have real startup costs; no zero-latency claim.
+
+Before implementation, the lifecycle regression failed because an unloaded/hidden view already owned a browser. Four new player checks also failed against the old page. Final checks: all 31 resolver/HTTP/concurrency tests, four player tests, seven viewport/gutter checks and the startup-provider check pass. Real WebView2 lifecycle probe passes allocation/release, rapid switching during initialization, native disposal, selection change while hidden, split views, minimize/restore, unload/reload and final close. Its last run measured about 1.0s for the initial scene and 0.10–0.20s for later video rebuilds; this is a WPF integration probe, not a new installed-VS benchmark. Computer Use inspection confirmed visible scene composition beneath text and gutter; WPF RenderTargetBitmap alone does not capture the GPU composition reliably.
+
+Independent read-only review found no important defects. Release build succeeds with pre-existing dependency-audit and VS thread-analysis warnings. Existing installed VS extension was not replaced during this task; a new VSIX is built for installation. Source publication does not create a GitHub Release.
+
 Plan: docs/superpowers/plans/2026-10-15-wallpaper-engine.md
 
 Ruling: The user approved the in-chat implementation design with “做吧”. Preserve the requested scope and execute inline rather than introducing another approval round.

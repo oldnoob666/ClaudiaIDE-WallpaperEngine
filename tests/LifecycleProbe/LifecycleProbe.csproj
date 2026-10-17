@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net472</TargetFramework><UseWPF>true</UseWPF><LangVersion>12</LangVersion></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../ClaudiaIDE/ClaudiaIDE.csproj" /><PackageReference Include="Microsoft.VisualStudio.Text.UI.Wpf" Version="17.0.487" /><PackageReference Include="Newtonsoft.Json" Version="13.0.4" /></ItemGroup>
+</Project>
