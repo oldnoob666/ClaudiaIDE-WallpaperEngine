@@ -3,4 +3,5 @@
   <ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13.0.4" /></ItemGroup>
   <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperProject.cs" Link="WallpaperProject.cs" Condition="Exists('../../Shared/WallpaperEngine/WallpaperProject.cs')" /></ItemGroup>
   <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperHost.cs" Link="WallpaperHost.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Shared/WallpaperEngine/WallpaperSetup.cs" Link="WallpaperSetup.cs" Condition="Exists('../../Shared/WallpaperEngine/WallpaperSetup.cs')" /></ItemGroup>
 </Project>

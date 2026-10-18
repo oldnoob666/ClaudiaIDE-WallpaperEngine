@@ -82,15 +82,13 @@ namespace ClaudiaIDE.WallpaperEngine
                 if (!string.IsNullOrWhiteSpace(steam)) roots.Add(steam);
             }
             roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam"));
-            foreach (var root in roots.ToArray())
-            {
-                var vdf = Path.Combine(root, "steamapps", "libraryfolders.vdf");
-                if (!File.Exists(vdf)) continue;
-                foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(vdf), "\"path\"\\s*\"([^\"]+)\""))
-                    roots.Add(match.Groups[1].Value.Replace(@"\\", @"\"));
-            }
-            return roots.Select(r => Path.Combine(r, "steamapps", "common", "wallpaper_engine"))
-                .FirstOrDefault(r => File.Exists(Path.Combine(r, "config.json"))) ?? "";
+            return WallpaperSetup.FindInstall(roots);
+        }
+
+        internal WallpaperSetupResult InspectCurrent(string directory, string userName, string selectedMonitor)
+        {
+            var liveEntry = engineRunning(directory) ? queryWallpaper(directory, selectedMonitor) : null;
+            return WallpaperSetup.Inspect(directory, userName, selectedMonitor, liveEntry);
         }
 
         private string GetState()
@@ -140,7 +138,12 @@ namespace ClaudiaIDE.WallpaperEngine
         // Called under gate; state and served project snapshots change together.
         private object CreateState(WallpaperProject project)
         {
-            if (project == null) return new { id = "", error = "未找到当前壁纸。请检查 Wallpaper Engine 安装目录、显示器名称和当前壁纸类型。" };
+            if (project == null)
+            {
+                var check = WallpaperSetup.Inspect(installDirectory, Environment.UserName, monitor);
+                return new { id = "", code = check.CanEnable ? "selection-unavailable" : check.Code,
+                    error = check.CanEnable ? "当前壁纸无法读取。请在 Wallpaper Engine 中重新应用视频或场景壁纸，然后打开「启用 Wallpaper Engine 动态背景」重新检测。" : check.Message };
+            }
             string id;
             using (var hash = SHA256.Create())
                 id = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(project.EntryPath))).Replace("-", "").ToLowerInvariant();

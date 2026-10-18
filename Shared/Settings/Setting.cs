@@ -22,6 +22,8 @@ namespace ClaudiaIDE.Settings
         private const string DefaultBackgroundFolder = "Images";
         private static readonly List<Setting> _instance = new List<Setting>();
         private static readonly string CONFIGFILE = "config.txt";
+        private string sessionWallpaperDirectory;
+        private string sessionWallpaperMonitor;
 
         public static string[] SupportVideoFileExtensions = new []{ ".gif", ".mp4" };
 
@@ -244,7 +246,32 @@ namespace ClaudiaIDE.Settings
                 return Deserialize();
             }
 
+            settings.ApplyWallpaperEngineSession();
             return settings;
+        }
+
+        internal void EnableWallpaperEngineForSession(string directory, string monitor)
+        {
+            sessionWallpaperDirectory = directory;
+            sessionWallpaperMonitor = monitor;
+            ApplyWallpaperEngineSession();
+            IsHidden = false;
+        }
+
+        internal void ClearWallpaperEngineSession()
+        {
+            sessionWallpaperDirectory = null;
+            sessionWallpaperMonitor = null;
+        }
+
+        private void ApplyWallpaperEngineSession()
+        {
+            if (sessionWallpaperMonitor == null) return;
+            ImageBackgroundType = ImageBackgroundType.WallpaperEngine;
+            WallpaperEngineDirectory = sessionWallpaperDirectory;
+            WallpaperEngineMonitor = sessionWallpaperMonitor;
+            ExpandToIDE = false;
+            if (Opacity <= 0) Opacity = 0.35;
         }
 
         private void Load(Properties props)
@@ -366,10 +393,12 @@ namespace ClaudiaIDE.Settings
 
             StickyScrollColorObject = StickyScrollColor.TryGetColor(out var sc) ? sc : (Color?)null;
             EditorBackgroundColorObject = EditorBackgroundColor.TryGetColor(out var ec) ? ec : (Color?)null;
+            ApplyWallpaperEngineSession();
         }
 
         public void OnApplyChanged()
         {
+            foreach (var setting in _instance) setting.ClearWallpaperEngineSession();
             try
             {
                 Load(SolutionConfigFilePath);
@@ -403,6 +432,7 @@ namespace ClaudiaIDE.Settings
             try
             {
                 Load();
+                ApplyWallpaperEngineSession();
                 OnChanged?.RaiseEvent(this, EventArgs.Empty);
             }
             catch { }

@@ -154,14 +154,26 @@ namespace ClaudiaIDE
             commands.AddCommand(new MenuCommand((s, e) =>
             {
                 ThreadHelper.ThrowIfNotOnUIThread();
-                foreach (var type in new[] { typeof(ClaudiaIdeOptionPageGrid), typeof(ClaudiaIdeDarkThemeOptionPageGrid) })
-                {
-                    var page = (ClaudiaIdeOptionPageGrid)GetDialogPage(type);
-                    page.ImageBackgroundType = ImageBackgroundType.WallpaperEngine;
-                    page.ExpandToIDE = false;
-                    page.SaveSettingsToStorage();
-                }
-                Setting.DefaultInstance.OnApplyChanged();
+#if VS_LATEST
+                var current = Setting.Instance;
+                var dialog = new WallpaperEngine.WallpaperSetupWindow(current.WallpaperEngineDirectory, current.WallpaperEngineMonitor, (directory, monitor) => {
+                    foreach (var type in new[] { typeof(ClaudiaIdeOptionPageGrid), typeof(ClaudiaIdeDarkThemeOptionPageGrid) })
+                    {
+                        var page = (ClaudiaIdeOptionPageGrid)GetDialogPage(type);
+                        page.ImageBackgroundType = ImageBackgroundType.WallpaperEngine;
+                        page.WallpaperEngineDirectory = directory;
+                        page.WallpaperEngineMonitor = monitor;
+                        page.ExpandToIDE = false;
+                        if (page.Opacity <= 0) page.Opacity = 0.35;
+                        page.SaveSettingsToStorage();
+                    }
+                    Setting.DefaultInstance.OnApplyChanged();
+                    // Keep solution-specific files intact; apply to the open view immediately.
+                    current.EnableWallpaperEngineForSession(directory, monitor);
+                    current.OnChanged.RaiseEvent(current, EventArgs.Empty);
+                }) { Owner = Application.Current.MainWindow };
+                dialog.ShowDialog();
+#endif
             }, new CommandID(new Guid(GuidList.MenuSetId), 0x0180)));
         }
 

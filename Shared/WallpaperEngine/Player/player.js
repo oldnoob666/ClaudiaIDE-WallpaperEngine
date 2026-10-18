@@ -18,9 +18,9 @@ function renderer() {
   });
   return rendererTask;
 }
-function report(text) {
+function report(text, error = false) {
   status.textContent = text || '';
-  if (window.chrome?.webview) window.chrome.webview.postMessage({ kind: 'wallpaper-status', text: text || 'playing', current });
+  if (window.chrome?.webview) window.chrome.webview.postMessage({ kind: 'wallpaper-status', text: text || 'playing', current, error });
 }
 function release() {
   ++generation;
@@ -45,7 +45,7 @@ async function refresh() {
     const response = await fetch('state', { cache: 'no-store', headers: { 'X-ClaudiaIDE': '1' } });
     if (!response.ok) throw new Error('壁纸状态读取失败：' + response.status);
     const selected = await response.json();
-    if (!selected.id) { if (current) { release(); current = ''; } report(selected.error); return; }
+    if (!selected.id) { if (current) { release(); current = ''; } report(selected.error, true); return; }
     if (selected.id === current) return;
     release(); current = selected.id;
     const version = generation;
@@ -61,7 +61,7 @@ async function refresh() {
         if (playingVideo.requestVideoFrameCallback) playingVideo.requestVideoFrameCallback(firstFrame);
         else requestAnimationFrame(() => requestAnimationFrame(firstFrame));
       });
-      video.addEventListener('error', () => { if (version === generation) { ready(false); report('此视频无法播放；请检查视频编码。'); } });
+      video.addEventListener('error', () => { if (version === generation) { ready(false); report('此视频无法播放。请先确认它在 Wallpaper Engine 中正常播放，或更换 MP4 视频；打开启用窗口可查看日志和教程。', true); } });
       target.append(video); await video.play();
     } else {
       const engine = await renderer();
@@ -70,12 +70,12 @@ async function refresh() {
         fit: 'cover', fps: 30, volume: 0,
         // WebWallGL onReady runs after its first rendered frame.
         onReady: firstFrame,
-        onError: error => { if (version === generation) { ready(false); report('场景渲染失败：' + String(error?.message || error).slice(0, 200)); } }
+        onError: error => { if (version === generation) { ready(false); report('场景渲染失败，请更换壁纸或尝试视频壁纸。详细原因：' + String(error?.message || error).slice(0, 200), true); } }
       });
       await scene.load(engine.httpSource(selected.source));
     }
     if (paused) window.wallpaperControl.pause(true);
-  } catch (error) { release(); report(error.message || String(error)); current = ''; }
+  } catch (error) { release(); report('壁纸加载失败。请重新检测，或更换视频壁纸。详细原因：' + (error.message || String(error)), true); current = ''; }
   finally { busy = false; }
 }
 document.addEventListener('visibilitychange', () => {

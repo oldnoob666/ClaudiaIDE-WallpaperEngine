@@ -87,3 +87,20 @@ test('page disposal destroys scene and invalidates a delayed first-frame callbac
   h.scenes[0].options.onReady();
   assert.equal(h.messages.slice(before).some(m => m.kind === 'wallpaper-ready' && m.ready), false);
 });
+
+test('missing selection is reported as an actionable error to the native diagnostics window', async () => {
+  const h = harness('video'); await h.settle();
+  h.select({ id: '', error: '请重新应用壁纸', code: 'selection-missing' });
+  await h.intervals[0](); await h.settle();
+  assert.ok(h.messages.some(m => m.kind === 'wallpaper-status' && m.error === true && m.text.includes('请重新应用壁纸')));
+});
+
+test('video decode and scene render failures are marked as errors, loading is not', async () => {
+  const video = harness('video'); await video.settle();
+  assert.equal(video.messages.some(m => m.error === true), false);
+  video.videos[0].fire('error');
+  assert.ok(video.messages.some(m => m.error === true && m.text.includes('视频')));
+  const scene = harness(); await scene.settle(); scene.rendererReady(); await scene.settle();
+  scene.scenes[0].options.onError(new Error('unsupported effect'));
+  assert.ok(scene.messages.some(m => m.error === true && m.text.includes('更换')));
+});

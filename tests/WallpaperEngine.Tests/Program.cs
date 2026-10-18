@@ -7,6 +7,15 @@ int passed = 0;
 void Check(bool result, string name) { if (!result) throw new Exception(name); Console.WriteLine("PASS " + name); passed++; }
 try
 {
+    SetupTests.Run(Check, root);
+    using (var host = new WallpaperHost(root))
+    using (var client = new HttpClient())
+    {
+        host.Configure(Path.Combine(root, "not-installed"), "Monitor0");
+        client.DefaultRequestHeaders.Add("X-ClaudiaIDE", "1");
+        var missing = JObject.Parse(await client.GetStringAsync(host.BaseUrl + "state"));
+        Check((string)missing["code"] == "config-missing" && ((string)missing["error"]).Contains("config.json"), "runtime missing-config error gives the same repair guidance as setup");
+    }
     var project = Path.Combine(root, "中文 壁纸");
     Directory.CreateDirectory(project);
     File.WriteAllText(Path.Combine(project, "scene.pkg"), "fixture");

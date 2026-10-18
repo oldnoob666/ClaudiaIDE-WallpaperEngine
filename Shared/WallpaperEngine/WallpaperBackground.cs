@@ -148,13 +148,24 @@ namespace ClaudiaIDE.WallpaperEngine
                             Log("First frame: " + started.ElapsedMilliseconds + "ms");
                         }
                     }
+                    else if ((string)message["kind"] == "wallpaper-status" && (bool?)message["error"] == true)
+                        WallpaperDiagnostics.Report((string)message["text"]);
                     else Log(e.WebMessageAsJson);
                 };
-                player.CoreWebView2.ProcessFailed += (s, e) => Log("WebView2 process failed: " + e.ProcessFailedKind);
+                player.CoreWebView2.ProcessFailed += (s, e) => {
+                    if (IsCurrent(player)) WallpaperDiagnostics.Report("WebView2 播放器进程异常（" + e.ProcessFailedKind + "）。请关闭后重新启用背景；仍失败时尝试其他壁纸并查看日志。");
+                };
                 player.CoreWebView2.Navigate(WallpaperHost.Instance.PlayerUrl);
                 Log("Player: " + WallpaperHost.Instance.PlayerUrl + "; controller=" + started.ElapsedMilliseconds + "ms");
             }
-            catch (Exception error) { if (IsCurrent(player)) Log("Initialize failed: " + error); }
+            catch (Exception error)
+            {
+                if (IsCurrent(player))
+                {
+                    WallpaperDiagnostics.Report("播放器初始化失败。请打开「启用 Wallpaper Engine 动态背景」检查 WebView2 Runtime，安装或修复后重启 Visual Studio。");
+                    Log("Initialize failed: " + error);
+                }
+            }
         }
 
         public void Update(Setting setting)

@@ -177,7 +177,7 @@
             </Button>
                     <Button guid="guidClaudiaIdePackageCmdSet" id="FollowWallpaperEngineId" priority="0x0180" type="Button">
                 <Parent guid="guidClaudiaIdePackageCmdSet" id="ClaudiaIdeMenuGroup2" />
-                <Strings><ButtonText>跟随 Wallpaper Engine</ButtonText><CanonicalName>.ClaudiaIDE.FollowWallpaperEngineCommand</CanonicalName></Strings>
+                <Strings><ButtonText>启用 Wallpaper Engine 动态背景…</ButtonText><CanonicalName>.ClaudiaIDE.FollowWallpaperEngineCommand</CanonicalName></Strings>
             </Button>
         </Buttons>
 

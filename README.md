@@ -2,6 +2,20 @@
 
 让 Visual Studio 2022 的编辑器背景跟随 Wallpaper Engine 当前壁纸，支持视频和部分动态场景。
 
+**[⬇ 下载稳定版 3.1.52.13（VSIX，双击安装）](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/download/v3.1.52.13/ClaudiaIDE-WallpaperEngine-3.1.52.13.vsix)** · [最新正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) · [安装与常见问题](docs/quick-start.md) · [反馈问题](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/issues)
+
+面向 **Windows x64 / Visual Studio 2022**，不是 VS Code 插件。需要本机已安装 Wallpaper Engine 和 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)。普通用户不需要下载源码、安装 Node.js 或编译项目。
+
+![Visual Studio 编辑器中的 Wallpaper Engine 动态背景](Images/wallpaper-engine-editor.jpg)
+
+## 三步开始
+
+1. **下载并安装**：下载上方 `.vsix` 安装包，关闭 Visual Studio 后双击安装，再重新打开 VS。已经安装原版 ClaudiaIDE 时，先阅读[原版替换说明](docs/quick-start.md#已经安装了原版-claudiaide)。
+2. **应用桌面壁纸**：在 Wallpaper Engine 中应用一张视频或场景壁纸，并打开一个代码文件。
+3. **检测并启用**：点击 **扩展 → ClaudiaIDE → 启用 Wallpaper Engine 动态背景…**。窗口自动检测目录、显示器和 WebView2，确认要跟随的显示器后点击 **启用当前壁纸**，关闭窗口即可查看。
+
+`Ctrl+Shift+Alt+C` 可显示/隐藏背景。透明度在“扩展 → ClaudiaIDE → 打开设置”的浅色/深色主题中调整。遇到无画面时，重新打开启用窗口查看诊断，或查阅[常见问题](docs/quick-start.md#常见问题)。
+
 这是基于 [buchizo/ClaudiaIDE](https://github.com/buchizo/ClaudiaIDE) Release3.1.52 的**非官方衍生版**，由 [oldnoob666](https://github.com/oldnoob666) 维护。原始背景功能来自 ClaudiaIDE；本仓库增加 Wallpaper Engine 联动、动态播放、滚动固定和左侧行号/断点栏覆盖。与 ClaudiaIDE 原作者、Wallpaper Engine 官方没有隶属关系。
 
 ## 功能
@@ -14,22 +28,13 @@
 - 只为可见的编辑区加载壁纸；隐藏标签、最小化 VS、隐藏背景或关闭视图时释放对应播放器，切回后自动重建。分屏中可见的编辑区均可播放。
 - 加载期间保留编辑器主题底色；首帧就绪后按设置的透明度显示背景，避免初始化白底闪现。
 
-## 安装与使用
+## 安装与兼容
 
-**请使用 3.1.52.12 或更新版本。3.1.52.10 存在切换标签时导致 VS 崩溃的回归，已在 3.1.52.12 修复。**
-
-目前仓库提供源码，尚未发布 GitHub Release 安装包。按下方步骤构建，双击生成的 `ClaudiaIDE.vsix`，按安装器提示关闭 Visual Studio 并完成安装。
-
-需要 Windows、Visual Studio 2022、[WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)、已安装的 Wallpaper Engine 以及本机可读取的壁纸素材。当前只验证了 Windows x64 / VS 2022；仓库保留的 VS 2019 工程不属于此次联动功能的验证范围。
-
-本版保留 ClaudiaIDE 扩展标识，按替换版使用。安装器若拒绝覆盖现有版本，先在扩展管理器卸载原版，再安装本版；不要同时启用两个版本。
-
-1. 在 Wallpaper Engine 中应用一张视频或场景壁纸。
-2. 在 VS 中打开“扩展 → ClaudiaIDE → 打开设置”，确认 Wallpaper Engine 安装目录和显示器名称（例如 `Monitor0`）。自动发现失败时手动指定 Steam 库中的 `steamapps\common\wallpaper_engine` 目录。
-3. 点击“扩展 → ClaudiaIDE → 跟随 Wallpaper Engine”，启用浅色和深色主题下的联动模式。
-4. 打开代码/文本文件，在 ClaudiaIDE 设置中调整不透明度。切回背景来源 `Single` 并保存即可恢复普通图片。
-
-Wallpaper Engine 未运行时，使用其配置文件最后保存的选择。各编辑视图播放同一素材，但播放进度不与桌面逐帧同步。
+- 使用 [GitHub Releases](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) 中的 `.vsix`，不是自动生成的 `Source code.zip`。安装、更新、卸载和恢复原版见[完整教程](docs/quick-start.md)。
+- 本版沿用 ClaudiaIDE 扩展标识，按原版的替换版使用，不要同时启用两版。安装器拒绝替换时，先在 VS 扩展管理器卸载原版，再安装本版。
+- 当前验证范围为 Windows x64 / VS 2022；仓库保留的 VS 2019 工程及 Windows ARM64 不在本次验证范围。
+- Wallpaper Engine 未运行时使用其配置文件最后保存的选择。各编辑区独立播放，播放进度不与桌面逐帧同步。
+- 下载入口固定指向本视频推广稳定版；后续试验功能会标记为预发布。更新前可先查看 Release 说明。
 
 ## 从源码构建
 
