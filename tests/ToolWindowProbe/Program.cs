@@ -21,6 +21,44 @@ internal static class Program
     }
     private static object Call(object target, string name, params object[] args) => target.GetType().GetMethod(name).Invoke(target, args);
 
+    private static void CheckEditorMouseHit(Type type)
+    {
+        var host = new Grid { Width = 500, Height = 200, Background = Brushes.Black };
+        var wallpaper = new Grid { IsHitTestVisible = false };
+        var editor = new TextBox { Text = "public class Example\n{\n    int value = 42;\n}", FontSize = 16 };
+        // VS draws caret/selection/adornments on canvases above the text.
+        // A null background lets blank pixels pass mouse hits to the editor.
+        var adornments = new Canvas();
+        host.Children.Add(wallpaper); host.Children.Add(editor); host.Children.Add(adornments);
+        var window = new Window { Content = host, Width = 520, Height = 240, Left = -10000, Top = -10000, ShowInTaskbar = false, ShowActivated = false };
+        window.Show();
+        try
+        {
+            host.Measure(new Size(500, 200)); host.Arrange(new Rect(0, 0, 500, 200)); host.UpdateLayout();
+            void Render() => host.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() => { }));
+            Render();
+            bool HitsEditor()
+            {
+                var hit = host.InputHitTest(new Point(100, 55)) as Visual;
+                return hit != null && (hit == editor || hit.IsDescendantOf(editor));
+            }
+            Check(HitsEditor(), "code receives mouse hits before enabling tool window transparency");
+            using (var transparency = (IDisposable)Activator.CreateInstance(type, host, wallpaper))
+            {
+                Call(transparency, "Refresh");
+                Render();
+                var hit = host.InputHitTest(new Point(100, 55));
+                Check(HitsEditor(), "transparent mode preserves code mouse hits through empty adornments; actual=" + hit?.GetType().Name);
+                Check(adornments.Background == null, "click-through adornment background remains null");
+                Call(transparency, "Refresh");
+                Render();
+                Check(HitsEditor(), "periodic transparency refresh does not intercept code clicks");
+            }
+            Check(HitsEditor(), "disabling transparency retains code mouse hits");
+        }
+        finally { window.Close(); }
+    }
+
     [STAThread]
     private static int Main()
     {
@@ -32,6 +70,7 @@ internal static class Program
             var listener = Extension.GetType("ClaudiaIDE.WallpaperEngine.ToolWindowTextViewListener", true);
             Check(listener.GetCustomAttributesData().Any(a => a.AttributeType.Name == "TextViewRoleAttribute"), "tool text listener supplies the role metadata required by VS composition");
             var type = Extension.GetType("ClaudiaIDE.WallpaperEngine.ToolWindowTransparency", true);
+            CheckEditorMouseHit(type);
             var root = new Grid { Background = Brushes.Black };
             var wallpaper = new Grid { Background = Brushes.Red };
             var pane = new Grid { Background = Brushes.Gray };

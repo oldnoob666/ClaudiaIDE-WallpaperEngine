@@ -1,8 +1,8 @@
 # 安装、启用与常见问题
 
-适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，稳定下载为 **3.1.52.13**；下文标注的透明工具窗口功能需要 **3.1.52.14**。当前验证范围是 Windows x64 和 Visual Studio 2022。
+适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，稳定下载为 **3.1.52.13**；透明工具窗口请使用修复了代码点击故障的 **3.1.52.15**。当前验证范围是 Windows x64 和 Visual Studio 2022。
 
-希望试用工具窗口透明时，下载 [3.1.52.14 Preview 1 预发布版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.14-preview.1)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.14.vsix`。GitHub 的「最新正式版」入口继续指向稳定版。
+希望试用工具窗口透明时，下载 [3.1.52.15 Preview 2 预发布版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.15-preview.2)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.15.vsix`。GitHub 的「最新正式版」入口继续指向稳定版。不要继续使用存在代码点击故障的 3.1.52.14 Preview 1。
 
 ## 工具窗口背景透明（3.1.52.14）
 

@@ -85,7 +85,10 @@ namespace ClaudiaIDE.WallpaperEngine
             {
                 var field = item.GetType().GetField("BackgroundProperty", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
                 var property = field?.GetValue(null) as DependencyProperty;
-                if (property?.PropertyType == typeof(Brush) && item.GetValue(property) != Brushes.Transparent)
+                // Null is already visually transparent and has no hit surface.
+                // Painting it Transparent would make editor adornment canvases
+                // intercept clicks that must reach the text view below them.
+                if (property?.PropertyType == typeof(Brush) && item.GetValue(property) is Brush brush && brush != Brushes.Transparent)
                 {
                     if (!originals.ContainsKey(item)) originals[item] = new Background {
                         Element = item, Property = property, Local = item.ReadLocalValue(property),
