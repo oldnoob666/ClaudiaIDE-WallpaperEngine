@@ -8,7 +8,7 @@
 
 面向 **Windows x64 / Visual Studio 2022**，不是 VS Code 插件。需要本机已安装 Wallpaper Engine 和 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)。普通用户不需要下载源码、安装 Node.js 或编译项目。
 
-![Visual Studio 编辑器中的 Wallpaper Engine 动态背景](Images/wallpaper-engine-editor.jpg)
+![Visual Studio 中的 Wallpaper Engine 动态背景（测试版开启工具窗口透明效果）](Images/wallpaper-engine-editor.png)
 
 ## 三步开始
 
