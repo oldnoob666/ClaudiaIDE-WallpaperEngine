@@ -16,6 +16,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)WallpaperEngine\WallpaperHost.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WallpaperEngine\WallpaperBackground.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WallpaperEngine\WallpaperSurface.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WallpaperEngine\ToolWindowTransparency.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WallpaperEngine\IdeWallpaperBackground.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClaudiaIDE.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClaudiaIDEFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClaudiaIdePackage.cs" />

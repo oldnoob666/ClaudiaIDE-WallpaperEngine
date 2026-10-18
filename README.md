@@ -4,6 +4,8 @@
 
 **[⬇ 下载稳定版 3.1.52.13（VSIX，双击安装）](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/download/v3.1.52.13/ClaudiaIDE-WallpaperEngine-3.1.52.13.vsix)** · [最新正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) · [安装与常见问题](docs/quick-start.md) · [反馈问题](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/issues)
 
+**[测试版 3.1.52.14 Preview 1：工具窗口背景透明](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.14-preview.1)**（Pre-release）。适合希望试用新功能的用户；日常使用可继续选择上方稳定版。测试源码位于 `codex/tool-window-transparency` 分支，稳定版源码保留在 `main`。
+
 面向 **Windows x64 / Visual Studio 2022**，不是 VS Code 插件。需要本机已安装 Wallpaper Engine 和 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)。普通用户不需要下载源码、安装 Node.js 或编译项目。
 
 ![Visual Studio 编辑器中的 Wallpaper Engine 动态背景](Images/wallpaper-engine-editor.jpg)
@@ -24,8 +26,9 @@
 - 视频静音循环播放，动态场景通过 WebWallGL 渲染。
 - 背景覆盖代码区及左侧行号、断点栏；上下、左右滚动代码时背景保持原位。
 - 支持透明度、浅色/深色主题设置和 `Ctrl+Shift+Alt+C` 显示/隐藏。
+- 3.1.52.14 新增可选的「工具窗口背景透明」：Wallpaper Engine 模式下，主窗口停靠区共用一张动态壁纸，输出、解决方案资源管理器等工具窗口透出背景；默认关闭，关闭后恢复原有外观。
 - 保留 ClaudiaIDE 原有图片和幻灯片模式；新建受支持的文本编辑视图也会显示背景。
-- 只为可见的编辑区加载壁纸；隐藏标签、最小化 VS、隐藏背景或关闭视图时释放对应播放器，切回后自动重建。分屏中可见的编辑区均可播放。
+- 默认只为可见的编辑区加载壁纸；隐藏标签、最小化 VS、隐藏背景或关闭视图时释放对应播放器，切回后自动重建。开启工具窗口透明后，主窗口停靠区共用一个播放器。
 - 加载期间保留编辑器主题底色；首帧就绪后按设置的透明度显示背景，避免初始化白底闪现。
 
 ## 安装与兼容
@@ -50,9 +53,9 @@ dotnet run --project tests\WallpaperEngine.Tests
 ## 已知限制
 
 - WebWallGL 是第三方场景渲染器，并非所有工坊场景、脚本或交互效果都兼容；不执行应用类壁纸。
-- 每个可见编辑视图有自己的播放器，隐藏标签不保留播放器。可见分屏及多个 VS 进程仍会增加内存和 GPU 占用；同一进程共享浏览器环境和缓存，因此全部标签隐藏后进程内存也不会归零。
+- 默认每个可见编辑视图有自己的播放器；开启工具窗口透明后，主窗口共用一个播放器。独立浮动编辑器及多个 VS 进程仍会增加内存和 GPU 占用；同一进程共享浏览器环境和缓存，释放播放器后进程内存也不会归零。
 - 隐藏后重新打开需要重建播放器，播放进度不保留。首次启动仍需初始化 WebView2 和读取素材，复杂场景可能需要数秒；详见 [资源生命周期与加载说明](docs/runtime-lifecycle.md)。
-- 动态背景覆盖受支持的文本编辑器窗格，不覆盖解决方案资源管理器等整个 VS 界面。
+- 默认动态背景覆盖受支持的文本编辑器窗格。3.1.52.14 可在当前浅色/深色主题设置中开启「工具窗口背景透明」扩展到主窗口停靠区域；独立浮动工具窗口、原生 HWND/第三方自绘窗口不保证透明，文字、选中高亮、输入控件与命令栏保留原有样式。
 - 日志位于 `%LOCALAPPDATA%\ClaudiaIDE\WallpaperEngine.log`，WebView2 数据位于 `%LOCALAPPDATA%\ClaudiaIDE\WebView2`。
 
 详细使用和排查见 [联动说明](docs/wallpaper-engine.md)，实现参考见 [参考项目拆解](docs/参考项目拆解.md)。`WORK-LOG.md` 和设计文档保留开发过程中的历史验证记录，文中“本机”结果不代表所有环境都已验证。

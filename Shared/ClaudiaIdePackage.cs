@@ -44,6 +44,9 @@ namespace ClaudiaIDE
         private Window _mainWindow;
         private Setting _settings;
         private bool _wallpaperCommandRegistered;
+#if VS_LATEST
+        private WallpaperEngine.IdeWallpaperBackground _ideWallpaper;
+#endif
         private readonly Dictionary<string, DependencyObject> _defaultThemeColor = new Dictionary<string, DependencyObject>();
 
         protected override async Task InitializeAsync(CancellationToken cancellationToken,
@@ -195,6 +198,11 @@ namespace ClaudiaIDE
             {
                 var rRootGrid = (Grid)_mainWindow.Template.FindName("RootGrid", _mainWindow);
                 if (rRootGrid == null) return;
+#if VS_LATEST
+                if (_ideWallpaper == null && _settings.TransparentToolWindows)
+                    _ideWallpaper = new WallpaperEngine.IdeWallpaperBackground(_mainWindow, rRootGrid);
+                _ideWallpaper?.Update(_settings);
+#endif
 
                 var removeTargets = new List<UIElement>();
                 foreach (UIElement el in rRootGrid.Children)

@@ -34,6 +34,8 @@ internal static class Program
         public override IMessage Invoke(IMessage message)
         {
             var call = (IMethodCallMessage)message;
+            if (call.MethodName == "GetHashCode") return new ReturnMessage(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this), null, 0, call.LogicalCallContext, call);
+            if (call.MethodName == "Equals") return new ReturnMessage(ReferenceEquals(GetTransparentProxy(), call.Args[0]), null, 0, call.LogicalCallContext, call);
             return new ReturnMessage(invoke(call), null, 0, call.LogicalCallContext, call);
         }
     }
@@ -45,6 +47,7 @@ internal static class Program
         public readonly Grid Gutter = new Grid { Background = Brushes.Black, Width = 60 };
         private readonly Canvas layer = new Canvas();
         public readonly object Background;
+        public readonly IWpfTextView View;
         public Brush ViewBackground = Brushes.Black;
         public Editor()
         {
@@ -77,6 +80,7 @@ internal static class Program
                     default: return null; // Event subscriptions need no simulated events: WPF raises visibility.
                 }
             }).GetTransparentProxy();
+            View = view;
             var margin = new Proxy(typeof(IWpfTextViewMargin), call => call.MethodName == "get_VisualElement" ? Gutter : null).GetTransparentProxy();
             var host = (IWpfTextViewHost)new Proxy(typeof(IWpfTextViewHost), call => call.MethodName == "GetTextViewMargin" ? margin : null).GetTransparentProxy();
             Background = Activator.CreateInstance(BackgroundType, new object[] { view, (Func<IWpfTextViewHost>)(() => host) });
@@ -88,6 +92,7 @@ internal static class Program
     {
         output = Path.GetFullPath(args[0]); Directory.CreateDirectory(output);
         File.WriteAllText(Path.Combine(output, "lifecycle.log"), "");
+        if (args.Length > 3 && args[3] == "--ide") { RunIde(args); return; }
         var app = new Application();
         Window window = null;
         Editor first = null, second = null;
@@ -185,6 +190,73 @@ internal static class Program
         }
         catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
         finally { ((IDisposable)first?.Background)?.Dispose(); ((IDisposable)second?.Background)?.Dispose(); }
+    }
+
+    private static void RunIde(string[] args)
+    {
+        var app = new Application();
+        var fixture = Path.Combine(output, "fixture"); Directory.CreateDirectory(fixture);
+        File.WriteAllText(Path.Combine(fixture, "config.json"), new JObject {
+            [Environment.UserName] = new JObject { ["general"] = new JObject { ["wallpaperconfig"] = new JObject { ["selectedwallpapers"] = new JObject { ["Monitor0"] = new JObject { ["file"] = args[1] } } } } }
+        }.ToString());
+        var setting = new Setting { ImageBackgroundType = ImageBackgroundType.WallpaperEngine, WallpaperEngineDirectory = fixture, WallpaperEngineMonitor = "Monitor0", Opacity = 0.35 };
+        typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, true);
+        var root = new Grid { Background = Brushes.Black };
+        var tool = new Grid { Background = Brushes.DarkGray };
+        root.Children.Add(tool);
+        var window = new Window { Title = "ClaudiaIDE tool window regression", Width = 1000, Height = 600, Content = root, ShowActivated = false };
+        var type = BackgroundType.Assembly.GetType("ClaudiaIDE.WallpaperEngine.IdeWallpaperBackground", true);
+        var ide = Activator.CreateInstance(type, window, root);
+        object FieldIde(string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ide);
+        void UpdateIde() => type.GetMethod("Update").Invoke(ide, new object[] { setting });
+        async Task ReadyIde(string label) => await Until(() => Task.FromResult((bool)FieldIde("ready") && ((Grid)FieldIde("visual"))?.Opacity == 0.35), label);
+        Editor editor = null;
+        UpdateIde();
+        Check(FieldIde("browser") == null, "unloaded main window creates no player");
+        window.Loaded += async (s, e) => {
+            try
+            {
+                UpdateIde();
+                await Until(() => Task.FromResult(FieldIde("browser") != null), "loaded main window starts one shared player");
+                Check(tool.Background == Brushes.DarkGray, "tool pane stays opaque while the first frame loads");
+                await ReadyIde("main window plays wallpaper without an open document");
+                Check(tool.Background == Brushes.Transparent && root.Children.Count == 2, "tool window has wallpaper behind a transparent background");
+                editor = new Editor(); root.Children.Add(editor.Root); Update(editor.Background, setting);
+                type.GetMethod("RegisterView", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { editor.View });
+                await Until(() => Task.FromResult(editor.ViewBackground == Brushes.Transparent), "new editor joins shared background");
+                Check(Browser(editor.Background) == null, "shared mode does not allocate a duplicate editor player");
+                setting.IsHidden = true; UpdateIde(); Update(editor.Background, setting);
+                await Until(() => Task.FromResult(FieldIde("browser") == null), "hide command releases shared player");
+                Check(tool.Background == Brushes.DarkGray && editor.ViewBackground == Brushes.Black, "hide command restores tool and editor backgrounds");
+                setting.IsHidden = false; UpdateIde(); Update(editor.Background, setting);
+                await ReadyIde("show command restores shared player");
+                window.WindowState = WindowState.Minimized;
+                await Until(() => Task.FromResult(FieldIde("browser") == null), "minimize releases the shared player");
+                Check(tool.Background == Brushes.DarkGray, "minimized window restores tool brushes");
+                window.WindowState = WindowState.Normal;
+                await ReadyIde("restore window rebuilds shared wallpaper");
+                typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, false); UpdateIde(); Update(editor.Background, setting);
+                await Until(() => Task.FromResult(FieldIde("browser") == null && Browser(editor.Background) != null), "disabling transparency returns to editor-only playback");
+                Check(tool.Background == Brushes.DarkGray, "disabling transparency restores opaque tool pane");
+                await Ready(editor.Background, "editor-only after disabling transparency");
+                typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, true); UpdateIde(); Update(editor.Background, setting);
+                await ReadyIde("re-enabling transparency restores shared wallpaper");
+                await Until(() => Task.FromResult(Browser(editor.Background) == null && editor.ViewBackground == Brushes.Transparent), "re-enabling releases editor player and preserves shared transparency");
+                for (var i = 0; i < 30; i++)
+                {
+                    window.Visibility = Visibility.Hidden; window.Visibility = Visibility.Visible;
+                    typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, false); UpdateIde();
+                    typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, true); UpdateIde();
+                }
+                await ReadyIde("rapid shell visibility and switch changes remain stable");
+                ((IDisposable)ide).Dispose();
+                await Until(() => Task.FromResult(FieldIde("browser") == null), "disposing shared background drains deferred native cleanup");
+                Check(tool.Background == Brushes.DarkGray, "disposing shared background restores tool pane");
+            }
+            catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
+            finally { ((IDisposable)editor?.Background)?.Dispose(); ((IDisposable)ide).Dispose(); window.Close(); }
+        };
+        app.Run(window);
     }
 
     private static async Task Ready(object background, string label)

@@ -1,6 +1,16 @@
 # 安装、启用与常见问题
 
-适用于 ClaudiaIDE Wallpaper Engine 非官方联动版 **3.1.52.13**，当前验证范围是 Windows x64 和 Visual Studio 2022。
+适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，稳定下载为 **3.1.52.13**；下文标注的透明工具窗口功能需要 **3.1.52.14**。当前验证范围是 Windows x64 和 Visual Studio 2022。
+
+希望试用工具窗口透明时，下载 [3.1.52.14 Preview 1 预发布版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.14-preview.1)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.14.vsix`。GitHub 的「最新正式版」入口继续指向稳定版。
+
+## 工具窗口背景透明（3.1.52.14）
+
+启用 Wallpaper Engine 背景后，打开「扩展 → ClaudiaIDE → 打开设置」，进入当前使用的「Light theme」或「Dark theme」，将「工具窗口背景透明」设为 `True`，点击确定/应用。英文界面名称是「Transparent tool window backgrounds」。
+
+主窗口的停靠区域共用一个播放器，输出、解决方案资源管理器、错误列表等 WPF 工具窗口的背景变透明，文字与选中高亮保持显示。新开的停靠窗口会在下一次刷新中接入。将开关改回 `False` 可恢复原有工具窗口背景和编辑区独立播放，无需重启 VS。开关默认关闭，浅色/深色主题分别保存；普通图片模式不受影响。
+
+壁纸首帧就绪前保留主题底色。隐藏背景、将背景透明度设为零或最小化 VS 时释放共享播放器；恢复后重新加载。独立浮动工具窗口及使用原生 HWND、独立网页或自绘表面的插件窗口不在透明覆盖保证范围内。
 
 ## 下载安装
 

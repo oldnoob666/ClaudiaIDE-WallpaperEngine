@@ -135,6 +135,7 @@ namespace ClaudiaIDE.Settings
         public bool IncludeSubdirectories { get; set; }
         public ImageStretch ImageStretch { get; set; }
         public bool ExpandToIDE { get; set; }
+        public bool TransparentToolWindows { get; set; }
         public double ViewBoxPointX { get; set; }
         public double ViewBoxPointY { get; set; }
         public bool IsLimitToMainlyEditorWindow { get; set; }
@@ -197,6 +198,7 @@ namespace ClaudiaIDE.Settings
                     settings.BackgroundImageAbsolutePath = solconf.BackgroundImageAbsolutePath;
                     settings.BackgroundImagesDirectoryAbsolutePath = solconf.BackgroundImagesDirectoryAbsolutePath;
                     settings.ExpandToIDE = solconf.ExpandToIDE;
+                    settings.TransparentToolWindows = solconf.TransparentToolWindows;
                     settings.Extensions = solconf.Extensions;
                     settings.ImageBackgroundType = solconf.ImageBackgroundType;
                     settings.WallpaperEngineDirectory = solconf.WallpaperEngineDirectory;
@@ -302,6 +304,7 @@ namespace ClaudiaIDE.Settings
             BlurRadius = (int)props.Item("BlurRadius").Value;
             BlurMethod = (ImageBlurMethod)props.Item("BlurMethod").Value;
             ExpandToIDE = (bool)props.Item("ExpandToIDE").Value;
+            TransparentToolWindows = (bool)props.Item("TransparentToolWindows").Value;
             ViewBoxPointX = (double)props.Item("ViewBoxPointX").Value;
             ViewBoxPointY = (double)props.Item("ViewBoxPointY").Value;
             IsLimitToMainlyEditorWindow = (bool)props.Item("IsLimitToMainlyEditorWindow").Value;
@@ -355,6 +358,7 @@ namespace ClaudiaIDE.Settings
             BackgroundImageAbsolutePath = solconf.BackgroundImageAbsolutePath;
             BackgroundImagesDirectoryAbsolutePath = solconf.BackgroundImagesDirectoryAbsolutePath;
             ExpandToIDE = solconf.ExpandToIDE;
+            TransparentToolWindows = solconf.TransparentToolWindows;
             Extensions = solconf.Extensions;
             ImageBackgroundType = solconf.ImageBackgroundType;
             WallpaperEngineDirectory = solconf.WallpaperEngineDirectory;

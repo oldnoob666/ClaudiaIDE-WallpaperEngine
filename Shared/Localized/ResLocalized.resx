@@ -399,4 +399,6 @@
   <data name="AboutImageURILabel" xml:space="preserve">
     <value>URI</value>
   </data>
+  <data name="TransparentToolWindows" xml:space="preserve"><value>Transparent tool window backgrounds</value></data>
+  <data name="TransparentToolWindowsDescription" xml:space="preserve"><value>Wallpaper Engine only. Share one wallpaper across the main docked workspace and make tool window backgrounds transparent. Turn off to restore original backgrounds. Floating and native windows are excluded.</value></data>
 </root>

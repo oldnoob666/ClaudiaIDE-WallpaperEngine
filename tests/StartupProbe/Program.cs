@@ -42,6 +42,12 @@ internal static class Program
             selected.Load(file);
             if (selected.ImageBackgroundType != ImageBackgroundType.Single) throw new Exception("FAIL explicit ordinary settings cannot clear the session override");
             Console.WriteLine("PASS clearing session restores ordinary solution settings");
+            var transparent = typeof(Setting).GetProperty("TransparentToolWindows");
+            transparent.SetValue(selected, true);
+            selected.Serialize(file);
+            var restored = new Setting(); restored.Load(file);
+            if (!(bool)transparent.GetValue(restored)) throw new Exception("FAIL solution settings lose tool window transparency");
+            Console.WriteLine("PASS solution settings round-trip tool window transparency");
         }
         catch (Exception error) { Console.Error.WriteLine(error.GetType().FullName + ": " + error.Message); return 1; }
         finally { Directory.Delete(directory, true); }

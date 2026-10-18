@@ -47,6 +47,7 @@ namespace ClaudiaIDE.WallpaperEngine
             view.VisualElement.Unloaded += OnUnloaded;
             timer = new DispatcherTimer(DispatcherPriority.Background, view.VisualElement.Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
             timer.Tick += OnTick;
+            IdeWallpaperBackground.Changed += QueueUpdate;
         }
 
         private bool IsCurrent(WebView2CompositionControl player) => !disposed && !releasePending && ReferenceEquals(browser, player);
@@ -79,6 +80,12 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             if (disposed) return;
             ObserveWindow();
+            if (IdeWallpaperBackground.Owns(view.VisualElement))
+            {
+                ReleasePlayer();
+                IdeWallpaperBackground.ClearEditor(view);
+                return;
+            }
             var visible = configured && opacity > 0 && !view.IsClosed
                 && view.VisualElement.IsLoaded && view.VisualElement.IsVisible
                 && observedWindow != null && observedWindow.WindowState != WindowState.Minimized;
@@ -120,9 +127,7 @@ namespace ClaudiaIDE.WallpaperEngine
             {
                 var started = System.Diagnostics.Stopwatch.StartNew();
                 var recordedFirstFrame = false;
-                if (environmentTask == null || environmentTask.IsFaulted || environmentTask.IsCanceled)
-                    environmentTask = CoreWebView2Environment.CreateAsync(null, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudiaIDE", "WebView2"));
-                var environment = await environmentTask;
+                var environment = await GetEnvironmentAsync();
                 if (!IsCurrent(player)) return;
                 await player.EnsureCoreWebView2Async(environment);
                 if (!IsCurrent(player)) return;
@@ -175,6 +180,13 @@ namespace ClaudiaIDE.WallpaperEngine
             opacity = setting.IsHidden ? 0 : Math.Max(0, Math.Min(1, setting.Opacity));
             configured = true;
             QueueUpdate();
+        }
+
+        internal static Task<CoreWebView2Environment> GetEnvironmentAsync()
+        {
+            if (environmentTask == null || environmentTask.IsFaulted || environmentTask.IsCanceled)
+                environmentTask = CoreWebView2Environment.CreateAsync(null, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudiaIDE", "WebView2"));
+            return environmentTask;
         }
 
         private void Resize()
@@ -293,6 +305,8 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             if (disposed) return;
             disposed = true;
+            IdeWallpaperBackground.Changed -= QueueUpdate;
+            IdeWallpaperBackground.RestoreEditor(view);
             timer.Stop();
             pendingUpdate?.Abort();
             pendingUpdate = null;

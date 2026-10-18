@@ -399,4 +399,6 @@
   <data name="AboutImageURILabel" xml:space="preserve">
     <value>URI</value>
   </data>
+  <data name="TransparentToolWindows" xml:space="preserve"><value>工具窗口背景透明</value></data>
+  <data name="TransparentToolWindowsDescription" xml:space="preserve"><value>仅用于 Wallpaper Engine 动态背景。开启后将壁纸铺满主窗口停靠区域，并透明化解决方案资源管理器、输出等窗口的背景；关闭后恢复原有背景。独立浮动窗口和原生窗口不在覆盖范围。</value></data>
 </root>

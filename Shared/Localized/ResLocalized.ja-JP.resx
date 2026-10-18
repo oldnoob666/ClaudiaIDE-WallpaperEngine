@@ -400,4 +400,6 @@
   <data name="AboutImageURILabel" xml:space="preserve">
     <value>URI</value>
   </data>
+  <data name="TransparentToolWindows" xml:space="preserve"><value>ツールウィンドウの背景を透明にする</value></data>
+  <data name="TransparentToolWindowsDescription" xml:space="preserve"><value>Wallpaper Engine モードのみ。メインウィンドウの背景を共有し、ツールウィンドウを透明にします。オフにすると元の背景に戻ります。フローティングおよびネイティブウィンドウは対象外です。</value></data>
 </root>

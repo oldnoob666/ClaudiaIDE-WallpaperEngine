@@ -143,6 +143,12 @@ namespace ClaudiaIDE.Options
         [LocalManager.LocalizedDescriptionAttribute("ExpandToIDETypeDes")]
         public bool ExpandToIDE { get; set; }
 
+        [LocalManager.LocalizedCategoryAttribute("Scope")]
+        [LocalManager.LocalizedDisplayNameAttribute("TransparentToolWindows")]
+        [LocalManager.LocalizedDescriptionAttribute("TransparentToolWindowsDescription")]
+        [DefaultValue(false)]
+        public bool TransparentToolWindows { get; set; }
+
         [LocalManager.LocalizedCategoryAttribute("Layout")]
         [LocalManager.LocalizedDisplayNameAttribute("MaxWidthType")]
         [LocalManager.LocalizedDescriptionAttribute("MaxWidthTypeDes")]
