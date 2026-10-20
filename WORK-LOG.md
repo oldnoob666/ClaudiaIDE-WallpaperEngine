@@ -67,3 +67,40 @@ User requested a continuous wallpaper under the black left line-number/breakpoin
 Surface saves/restores background brushes/bindings along text/gutter paths and uses the public IWpfTextView.Background property to clear the editor's own drawing background. Initial .8 visual check exposed that the editor CLR background is not necessarily a public Background DP; added a failing regression and corrected it in .9. Reviewer flagged strong retention of recycled gutter visuals; detached controls are now restored/pruned each resize (failing-then-passing regression).
 
 ViewportProbe passes original scroll/resize cases, full gutter+text bounds, explicit view background transparency, preserved glyph input, detached marker restoration and disposal restoration. Actual .9 VS screenshot shows a continuous scene behind line numbers and code. Pane1080.67x604 remains at(0,0) while text viewportTop340; animation ~30 FPS. PNG alpha89 confirms the original35% opacity is retained. Hidden views no longer overwrite diagnostic captures; capture uses pane target and native DPI. Installed through official installer, exit0. Saved original file edits and restored caret line20. Intermediate local .7/.8 builds are superseded by .9; not delivered.
+
+## 2026-10-20：脚本切换保留与 60 秒休眠
+
+用户批准在频繁切换脚本时保留已加载的独立播放器，连续 60 秒不切换后释放隐藏标签，仅保留所有可见编辑区。实现按 UI Dispatcher 共用倒计时，使用 Stopwatch 计算经过时间；不同脚本获得焦点及标签显示时重新计时，布局和设置更新不延时。隐藏和临时卸载的开放标签保留播放器，停止布局及诊断轮询；关闭、最小化、隐藏窗口或禁用背景仍及时释放。保留 WPF 调度后拆卸、首帧保护与异步实例身份检查。
+
+真实 WebView2 测试发现 Chromium 会在 visibilitychange 后自行暂停静音视频，即使网页没有调用 pause。编辑区通过文档初始化脚本启用内部 keepAlive，并仅在隐藏、未显式暂停且 generation 仍匹配时恢复这种暂停；释放的旧视频不会复活。场景不再因网页可见性事件被主动暂停，但后台帧率仍受 WebView2 调度影响。
+
+只读审查指出：已卸载的缓存标签没有 Window.GetWindow，切换到共享背景时会漏释放独立播放器。先用 --ide 探针复现超时，再改为按已观察窗口判断共享归属；回归通过。分屏创建仅重置计时，不覆盖最后实际获焦脚本，避免吞掉后续焦点切换。再次只读复核未发现确定的剩余缺陷。
+
+验证：
+- 旧实现先在“初始化中隐藏仍保留相同播放器”检查失败，新增网页保留/暂停恢复检查也先失败后通过。
+- 独立播放器真实场景/视频 LifecycleProbe：115 项通过。包含 60 次双向切换、隐藏视频实际推进、卸载重载复用、35 秒后切换分屏重置全局期限、原隐藏标签超过 60 秒仍保留、最后一次切换 60 秒后释放、所有可见分屏保留、原生销毁与切回恢复。
+- 共享播放器 LifecycleProbe --ide：24 项通过，含已卸载缓存标签切共享及时释放。
+- 配置与路径检查 47 项、Node 播放器测试 10 项、StartupProbe 6 项、ViewportProbe 7 项、ToolWindowProbe 25 项全部通过。
+- Release 构建及 git diff --check 通过。构建保留已有 MessagePack 3.1.7 NU1902、探针程序集版本及线程分析警告，未扩展本次依赖修改范围。
+- VSIX 内 ClaudiaIDE.dll、WallpaperEngine/player.js 与本次构建/源文件的 SHA-256 分别一致。安装包 SHA-256：B2971D56ABD4452835C08BEC9A2B32C0B59523AD422EF5356BFB6002B9280AB2。
+
+原生探针输出在工作区 verification/sleep-final、verification/sleep-shared-final；其他检查日志为 verification/sleep-*.log。以上为 WPF + 真实 WebView2 运行时验证，不等同于完整 VS 内安装、标签拖拽与 UI 冒烟测试。本次交付本地源码及构建包，未进行安装或发布。
+
+## 2026-10-20：切换标签黑屏修复与 3.1.52.16 安装核验
+
+用户提供的 60 FPS 录屏出现 8 次代码区深色遮挡，每次约 0.43–0.80 秒；底部输出区仍显示壁纸，恢复时刻固定在每秒同一相位。结合共享背景每秒执行 ClearEditor/Refresh 的实现，修复编辑器重新显示后等待周期透明化的问题。
+
+RegisterView 现在订阅视图加载、显示、获得焦点及背景画刷变化，在 Render 前的 DataBind 调度合并更新编辑器与祖先背景。此路径只更新画刷；播放器及视觉子元素的创建、移动、销毁仍走原有 Background 调度。已透明的编辑区不重复写入背景属性；视图关闭时对称解绑，禁用及销毁共享背景时取消待执行更新，保留每秒轮询兜底。
+
+回归探针停用周期计时器，直接在 CompositionTarget.Rendering 检查标签显示后的第一帧；旧实现先失败，修复后通过。另覆盖背景重置、焦点切换、新视图加载、共享播放器身份保持及最新主题画刷还原。只读代码审查未发现确定的剩余实质缺陷。
+
+验证与交付记录：
+
+- 独立播放器及真实 60 秒休眠：115 项通过；共享播放器及首帧透明化：29 项通过。
+- 配置/路径检查 47 项、Node 播放器测试 10 项、StartupProbe 6 项、ViewportProbe 7 项、ToolWindowProbe 25 项通过。推送前重新运行配置/Node 检查及 Release 构建，结果通过。
+- CRLF 感知的 git diff --check 通过；VSIX 保留现有依赖及分析器警告，未引入依赖升级。
+- 官方 VSIXInstaller 升级到 3.1.52.16，退出码 0；安装目录内 DLL、播放器脚本与构建一致，原 config.txt 哈希保持一致，升级前已备份扩展文件。
+- 在用户打开的 WallpaperSwitchSmoke 项目中，鼠标切换 Script09、Script11、Script12、Script06，观察到切换快照中壁纸保持可见。该检查不是逐帧录屏测量，不声称覆盖所有时序。用户随后自行测试并确认“已经没问题了”。
+- 3.1.52.16 安装包 SHA-256：2C39CF908859855B210D46F61A0EC878D04950B54E2CE23FC8330BF6DB4E6567。
+
+用户确认后要求推送 GitHub；源码继续使用 publish 远端的 codex/tool-window-transparency 测试分支。该操作发布源码提交，未创建新的 GitHub Release 或上传安装包。

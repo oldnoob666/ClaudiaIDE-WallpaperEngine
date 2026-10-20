@@ -39,7 +39,7 @@ window.wallpaperControl = {
   diagnostics() { return { current, paused, scene: scene?.stats || null, video: video ? { time: video.currentTime, ready: video.readyState, paused: video.paused } : null, error: status.textContent }; }
 };
 async function refresh() {
-  if (busy || document.hidden || paused) return;
+  if (busy || (document.hidden && !window.claudiaKeepAlive) || paused) return;
   busy = true;
   try {
     const response = await fetch('state', { cache: 'no-store', headers: { 'X-ClaudiaIDE': '1' } });
@@ -56,6 +56,12 @@ async function refresh() {
       video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
       video.src = selected.source + selected.entry.split('/').map(encodeURIComponent).join('/');
       const playingVideo = video;
+      // WebView2 may pause muted video itself after a tab becomes hidden.
+      // Keep retained editor players advancing, but never revive a released clip.
+      video.addEventListener('pause', () => {
+        if (window.claudiaKeepAlive && document.hidden && !paused && version === generation)
+          playingVideo.play().catch(() => {});
+      });
       video.addEventListener('playing', () => {
         if (version !== generation) return;
         if (playingVideo.requestVideoFrameCallback) playingVideo.requestVideoFrameCallback(firstFrame);
@@ -79,7 +85,7 @@ async function refresh() {
   finally { busy = false; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { if (scene) scene.pause(); if (video) video.pause(); }
+  if (document.hidden) { if (!window.claudiaKeepAlive) { if (scene) scene.pause(); if (video) video.pause(); } }
   else { window.wallpaperControl.pause(paused); refresh(); }
 });
 window.addEventListener('pagehide', release);

@@ -1,6 +1,9 @@
 #if VS_LATEST
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,8 +18,61 @@ namespace ClaudiaIDE.WallpaperEngine
 {
     internal sealed class WallpaperBackground : IDisposable
     {
+        // One inactivity deadline for every editor on the VS UI dispatcher.
+        // Retained tabs do not need their own polling timer to enter sleep.
+        private sealed class PlaybackSession
+        {
+            internal static readonly ConditionalWeakTable<Dispatcher, PlaybackSession> Sessions = new ConditionalWeakTable<Dispatcher, PlaybackSession>();
+            internal readonly List<WallpaperBackground> Views = new List<WallpaperBackground>();
+            private readonly Stopwatch sinceSwitch = new Stopwatch();
+            private readonly DispatcherTimer idleTimer;
+            private WallpaperBackground active;
+            internal bool IsWarm => sinceSwitch.IsRunning && sinceSwitch.Elapsed < TimeSpan.FromSeconds(60);
+
+            internal PlaybackSession(Dispatcher dispatcher)
+            {
+                idleTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
+                idleTimer.Tick += (s, e) => {
+                    idleTimer.Stop();
+                    var remaining = TimeSpan.FromSeconds(60) - sinceSwitch.Elapsed;
+                    if (remaining > TimeSpan.Zero)
+                    {
+                        idleTimer.Interval = remaining;
+                        idleTimer.Start();
+                        return;
+                    }
+                    foreach (var background in Views) background.QueueUpdate();
+                };
+            }
+
+            internal void Activate(WallpaperBackground background)
+            {
+                if (active == background) return;
+                active = background;
+                Restart();
+            }
+
+            internal void Restart()
+            {
+                sinceSwitch.Restart();
+                idleTimer.Stop();
+                idleTimer.Interval = TimeSpan.FromSeconds(60);
+                idleTimer.Start();
+            }
+
+            internal void Remove(WallpaperBackground background)
+            {
+                Views.Remove(background);
+                if (active == background) active = null;
+                if (Views.Count != 0) return;
+                idleTimer.Stop();
+                sinceSwitch.Reset();
+            }
+        }
+
         // Accessed only on the editor dispatcher; all views share the environment.
         private static Task<CoreWebView2Environment> environmentTask;
+        private readonly PlaybackSession session;
         private readonly IWpfTextView view;
         private readonly IAdornmentLayer layer;
         private WebView2CompositionControl browser;
@@ -27,7 +83,6 @@ namespace ClaudiaIDE.WallpaperEngine
         private Task initialize;
         private Window observedWindow;
         private DispatcherOperation pendingUpdate;
-        private bool releasePending;
         private bool configured;
         private bool ready;
         private bool disposed;
@@ -39,7 +94,10 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             this.view = view;
             this.hostProvider = hostProvider;
+            session = PlaybackSession.Sessions.GetValue(view.VisualElement.Dispatcher, dispatcher => new PlaybackSession(dispatcher));
+            session.Views.Add(this);
             layer = view.GetAdornmentLayer("ClaudiaIDE.WallpaperEngine");
+            view.GotAggregateFocus += OnFocus;
             view.ViewportWidthChanged += OnResize;
             view.ViewportHeightChanged += OnResize;
             view.VisualElement.IsVisibleChanged += OnVisibilityChanged;
@@ -50,7 +108,7 @@ namespace ClaudiaIDE.WallpaperEngine
             IdeWallpaperBackground.Changed += QueueUpdate;
         }
 
-        private bool IsCurrent(WebView2CompositionControl player) => !disposed && !releasePending && ReferenceEquals(browser, player);
+        private bool IsCurrent(WebView2CompositionControl player) => !disposed && ReferenceEquals(browser, player);
 
         private void QueueUpdate()
         {
@@ -61,37 +119,53 @@ namespace ClaudiaIDE.WallpaperEngine
             pendingUpdate = view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => {
                 pendingUpdate = null;
                 if (disposed) return;
-                if (releasePending) { releasePending = false; ReleasePlayer(); }
                 UpdateVisibility();
-                Resize();
+                if (view.VisualElement.IsLoaded && view.VisualElement.IsVisible) Resize();
             }));
         }
 
         private void ObserveWindow()
         {
             var window = Window.GetWindow(view.VisualElement);
+            // A tab can leave the visual tree while VS keeps the text view open.
+            // Retain its last window so minimizing/closing still releases it.
+            if (window == null && !view.VisualElement.IsLoaded) return;
             if (window == observedWindow) return;
-            if (observedWindow != null) observedWindow.StateChanged -= OnWindowStateChanged;
+            if (observedWindow != null)
+            {
+                observedWindow.StateChanged -= OnWindowStateChanged;
+                observedWindow.IsVisibleChanged -= OnWindowVisibilityChanged;
+            }
             observedWindow = window;
-            if (observedWindow != null) observedWindow.StateChanged += OnWindowStateChanged;
+            if (observedWindow != null)
+            {
+                observedWindow.StateChanged += OnWindowStateChanged;
+                observedWindow.IsVisibleChanged += OnWindowVisibilityChanged;
+            }
         }
 
         private void UpdateVisibility()
         {
             if (disposed) return;
             ObserveWindow();
-            if (IdeWallpaperBackground.Owns(view.VisualElement))
+            if (IdeWallpaperBackground.OwnsWindow(observedWindow))
             {
                 ReleasePlayer();
                 IdeWallpaperBackground.ClearEditor(view);
                 return;
             }
-            var visible = configured && opacity > 0 && !view.IsClosed
-                && view.VisualElement.IsLoaded && view.VisualElement.IsVisible
-                && observedWindow != null && observedWindow.WindowState != WindowState.Minimized;
-            if (!visible) { ReleasePlayer(); return; }
+            var enabled = configured && opacity > 0 && !view.IsClosed
+                && observedWindow != null && observedWindow.IsVisible && observedWindow.WindowState != WindowState.Minimized;
+            var visible = enabled && view.VisualElement.IsLoaded && view.VisualElement.IsVisible;
+            if (!visible)
+            {
+                timer.Stop();
+                if (!enabled || !session.IsWarm) ReleasePlayer();
+                return;
+            }
             if (browser == null)
             {
+                session.Restart();
                 // Set transparency before insertion and native controller creation.
                 // Keep the themed editor intact until the first decoded/rendered frame.
                 var player = new WebView2CompositionControl {
@@ -107,19 +181,32 @@ namespace ClaudiaIDE.WallpaperEngine
                 layer.AddAdornment(AdornmentPositioningBehavior.ViewportRelative, null, this, container, null);
                 Resize();
                 initialize = InitializeAsync(player);
-                timer.Start();
             }
+            timer.Start();
             visual.Opacity = ready ? opacity : 0;
         }
 
-        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => QueueUpdate();
-        private void OnLoaded(object sender, RoutedEventArgs e) => QueueUpdate();
-        private void OnUnloaded(object sender, RoutedEventArgs e)
+        private void OnFocus(object sender, EventArgs e)
         {
-            releasePending = true;
+            if (!disposed && configured && opacity > 0 && !view.IsClosed && view.VisualElement.IsLoaded
+                && view.VisualElement.IsVisible && !IdeWallpaperBackground.Owns(view.VisualElement)) session.Activate(this);
+        }
+        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if ((bool)e.NewValue) OnShown();
             QueueUpdate();
         }
+        private void OnShown()
+        {
+            // Becoming visible can select a tab before its editor receives focus.
+            // Do not replace the focused editor when a second split is created.
+            if (!disposed && configured && opacity > 0 && !view.IsClosed && view.VisualElement.IsLoaded
+                && view.VisualElement.IsVisible && !IdeWallpaperBackground.Owns(view.VisualElement)) session.Restart();
+        }
+        private void OnLoaded(object sender, RoutedEventArgs e) { OnShown(); QueueUpdate(); }
+        private void OnUnloaded(object sender, RoutedEventArgs e) => QueueUpdate();
         private void OnWindowStateChanged(object sender, EventArgs e) => QueueUpdate();
+        private void OnWindowVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => QueueUpdate();
 
         private async Task InitializeAsync(WebView2CompositionControl player)
         {
@@ -145,7 +232,7 @@ namespace ClaudiaIDE.WallpaperEngine
                     if ((string)message["kind"] == "wallpaper-ready")
                     {
                         ready = (bool?)message["ready"] == true;
-                        Resize();
+                        if (view.VisualElement.IsLoaded && view.VisualElement.IsVisible) Resize();
                         visual.Opacity = ready ? opacity : 0;
                         if (ready && !recordedFirstFrame)
                         {
@@ -160,6 +247,10 @@ namespace ClaudiaIDE.WallpaperEngine
                 player.CoreWebView2.ProcessFailed += (s, e) => {
                     if (IsCurrent(player)) WallpaperDiagnostics.Report("WebView2 播放器进程异常（" + e.ProcessFailedKind + "）。请关闭后重新启用背景；仍失败时尝试其他壁纸并查看日志。");
                 };
+                // Only independent editor players stay warm across hidden tabs.
+                // The shared IDE player keeps its existing window lifecycle.
+                await player.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.claudiaKeepAlive = true;");
+                if (!IsCurrent(player)) return;
                 player.CoreWebView2.Navigate(WallpaperHost.Instance.PlayerUrl);
                 Log("Player: " + WallpaperHost.Instance.PlayerUrl + "; controller=" + started.ElapsedMilliseconds + "ms");
             }
@@ -230,7 +321,8 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             UpdateVisibility();
             var player = browser;
-            if (disposed || player == null || initialize == null || !initialize.IsCompleted || player.CoreWebView2 == null) return;
+            if (disposed || !view.VisualElement.IsLoaded || !view.VisualElement.IsVisible
+                || player == null || initialize == null || !initialize.IsCompleted || player.CoreWebView2 == null) return;
             try
             {
                 Resize(); // Also attaches when the editor host becomes available after view creation.
@@ -278,7 +370,7 @@ namespace ClaudiaIDE.WallpaperEngine
             surface = null;
             visual = null;
             player.Dispose();
-            Log("Player released: editor hidden, unloaded, or background disabled");
+            Log("Player released: hidden editor idle, view closed, window hidden/minimized, or background disabled");
         }
 
         internal static void Log(string message)
@@ -305,6 +397,7 @@ namespace ClaudiaIDE.WallpaperEngine
         {
             if (disposed) return;
             disposed = true;
+            session.Remove(this);
             IdeWallpaperBackground.Changed -= QueueUpdate;
             IdeWallpaperBackground.RestoreEditor(view);
             timer.Stop();
@@ -312,10 +405,15 @@ namespace ClaudiaIDE.WallpaperEngine
             pendingUpdate = null;
             view.ViewportWidthChanged -= OnResize;
             view.ViewportHeightChanged -= OnResize;
+            view.GotAggregateFocus -= OnFocus;
             view.VisualElement.IsVisibleChanged -= OnVisibilityChanged;
             view.VisualElement.Loaded -= OnLoaded;
             view.VisualElement.Unloaded -= OnUnloaded;
-            if (observedWindow != null) observedWindow.StateChanged -= OnWindowStateChanged;
+            if (observedWindow != null)
+            {
+                observedWindow.StateChanged -= OnWindowStateChanged;
+                observedWindow.IsVisibleChanged -= OnWindowVisibilityChanged;
+            }
             observedWindow = null;
             // View.Closed may also arrive during VS's visual-tree teardown.
             // Invalidate callbacks now; detach/dispose only after the walk.

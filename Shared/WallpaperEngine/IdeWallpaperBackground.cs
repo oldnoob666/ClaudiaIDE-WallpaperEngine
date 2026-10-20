@@ -26,6 +26,7 @@ namespace ClaudiaIDE.WallpaperEngine
         private readonly Grid root;
         private readonly DispatcherTimer timer;
         private DispatcherOperation pending;
+        private DispatcherOperation pendingTransparency;
         private WebView2CompositionControl browser;
         private Grid visual;
         private ToolWindowTransparency transparency;
@@ -45,15 +46,42 @@ namespace ClaudiaIDE.WallpaperEngine
             root.SizeChanged += OnSizeChanged;
         }
 
-        internal static bool Owns(FrameworkElement element) => current != null && current.enabled && !current.disposed
-            && Window.GetWindow(element) == current.window;
+        internal static bool Owns(FrameworkElement element) => OwnsWindow(Window.GetWindow(element));
+        internal static bool OwnsWindow(Window window) => current != null && current.enabled && !current.disposed
+            && window == current.window;
         internal static void ClearEditor(IWpfTextView view) => current?.transparency?.ClearEditor(view);
         internal static void RestoreEditor(IWpfTextView view) => current?.transparency?.RestoreEditor(view);
         internal static void RegisterView(IWpfTextView view)
         {
+            foreach (var reference in views)
+                if (reference.TryGetTarget(out var registered) && ReferenceEquals(registered, view)) return;
             views.Add(new WeakReference<IWpfTextView>(view));
+            view.VisualElement.Loaded += OnEditorLoaded;
+            view.VisualElement.IsVisibleChanged += OnEditorVisibilityChanged;
+            view.GotAggregateFocus += OnEditorChanged;
+            view.BackgroundBrushChanged += OnEditorChanged;
+            view.Closed += OnEditorClosed;
+            current?.QueueTransparencyRefresh();
             if (Environment.GetEnvironmentVariable("CLAUDIA_WALLPAPER_DIAGNOSTICS") == "1")
                 WallpaperBackground.Log("Shared background text view: " + view.TextBuffer.ContentType.TypeName + "; interactive=" + view.Roles.Contains(PredefinedTextViewRoles.Interactive));
+        }
+
+        private static void OnEditorLoaded(object sender, RoutedEventArgs e) => current?.QueueTransparencyRefresh();
+        private static void OnEditorChanged(object sender, EventArgs e) => current?.QueueTransparencyRefresh();
+        private static void OnEditorVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if ((bool)e.NewValue) current?.QueueTransparencyRefresh();
+        }
+        private static void OnEditorClosed(object sender, EventArgs e)
+        {
+            var view = (IWpfTextView)sender;
+            view.VisualElement.Loaded -= OnEditorLoaded;
+            view.VisualElement.IsVisibleChanged -= OnEditorVisibilityChanged;
+            view.GotAggregateFocus -= OnEditorChanged;
+            view.BackgroundBrushChanged -= OnEditorChanged;
+            view.Closed -= OnEditorClosed;
+            current?.transparency?.RestoreEditor(view);
+            views.RemoveAll(reference => !reference.TryGetTarget(out var registered) || ReferenceEquals(registered, view));
         }
 
         public void Update(Setting setting)
@@ -68,6 +96,29 @@ namespace ClaudiaIDE.WallpaperEngine
         }
 
         private bool IsCurrent(WebView2CompositionControl player) => !disposed && enabled && ReferenceEquals(player, browser);
+        private void QueueTransparencyRefresh()
+        {
+            if (disposed || !enabled || !ready || transparency == null || pendingTransparency != null) return;
+            // Brush updates must beat the next Render operation. Keep native
+            // creation/disposal and visual child changes on the existing deferred path.
+            pendingTransparency = root.Dispatcher.BeginInvoke(DispatcherPriority.DataBind, new Action(() => {
+                pendingTransparency = null;
+                RefreshTransparency();
+            }));
+        }
+
+        private void RefreshTransparency()
+        {
+            if (disposed || !enabled || !ready || transparency == null || !root.IsLoaded
+                || !window.IsVisible || window.WindowState == WindowState.Minimized) return;
+            for (var i = views.Count - 1; i >= 0; i--)
+            {
+                if (!views[i].TryGetTarget(out var view) || view.IsClosed) { views.RemoveAt(i); continue; }
+                if (Window.GetWindow(view.VisualElement) == window) transparency.ClearEditor(view);
+            }
+            transparency.Refresh();
+        }
+
         private void QueueUpdate()
         {
             if (disposed || pending != null) return;
@@ -106,12 +157,7 @@ namespace ClaudiaIDE.WallpaperEngine
                     transparency = new ToolWindowTransparency(root, visual);
                     Changed?.Invoke();
                 }
-                for (var i = views.Count - 1; i >= 0; i--)
-                {
-                    if (!views[i].TryGetTarget(out var view) || view.IsClosed) { views.RemoveAt(i); continue; }
-                    if (Window.GetWindow(view.VisualElement) == window) transparency.ClearEditor(view);
-                }
-                transparency.Refresh();
+                RefreshTransparency();
             }
             else if (transparency != null)
             {
@@ -168,6 +214,7 @@ namespace ClaudiaIDE.WallpaperEngine
         private void ReleasePlayer()
         {
             timer.Stop();
+            pendingTransparency?.Abort(); pendingTransparency = null;
             var player = browser;
             browser = null; ready = false;
             transparency?.Dispose(); transparency = null;
@@ -188,6 +235,7 @@ namespace ClaudiaIDE.WallpaperEngine
             if (current == this) current = null;
             timer.Stop(); timer.Tick -= OnTick;
             pending?.Abort(); pending = null;
+            pendingTransparency?.Abort(); pendingTransparency = null;
             window.StateChanged -= OnChanged;
             window.IsVisibleChanged -= OnVisibilityChanged;
             window.Closed -= OnClosed;

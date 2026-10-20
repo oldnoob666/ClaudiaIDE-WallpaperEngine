@@ -49,6 +49,12 @@ internal static class Program
         public readonly object Background;
         public readonly IWpfTextView View;
         public Brush ViewBackground = Brushes.Black;
+        private EventHandler gotFocus, viewportChanged, closed;
+        private EventHandler<BackgroundBrushChangedEventArgs> backgroundChanged;
+        private bool isClosed;
+        public void Focus() => gotFocus?.Invoke(View, EventArgs.Empty);
+        public void Resize() => viewportChanged?.Invoke(View, EventArgs.Empty);
+        public void Close() { isClosed = true; closed?.Invoke(View, EventArgs.Empty); }
         public Editor()
         {
             Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
@@ -74,9 +80,23 @@ internal static class Program
                     case "get_ViewportWidth": return 500d;
                     case "get_ViewportHeight": return 400d;
                     case "get_ViewportLeft": case "get_ViewportTop": return 0d;
-                    case "get_IsClosed": return false;
+                    case "get_IsClosed": return isClosed;
                     case "get_Background": return ViewBackground;
-                    case "set_Background": ViewBackground = (Brush)call.Args[0]; return null;
+                    case "set_Background":
+                        if (ViewBackground != (Brush)call.Args[0])
+                        {
+                            ViewBackground = (Brush)call.Args[0];
+                            backgroundChanged?.Invoke(View, new BackgroundBrushChangedEventArgs(ViewBackground));
+                        }
+                        return null;
+                    case "add_BackgroundBrushChanged": backgroundChanged += (EventHandler<BackgroundBrushChangedEventArgs>)call.Args[0]; return null;
+                    case "remove_BackgroundBrushChanged": backgroundChanged -= (EventHandler<BackgroundBrushChangedEventArgs>)call.Args[0]; return null;
+                    case "add_Closed": closed += (EventHandler)call.Args[0]; return null;
+                    case "remove_Closed": closed -= (EventHandler)call.Args[0]; return null;
+                    case "add_GotAggregateFocus": gotFocus += (EventHandler)call.Args[0]; return null;
+                    case "remove_GotAggregateFocus": gotFocus -= (EventHandler)call.Args[0]; return null;
+                    case "add_ViewportWidthChanged": viewportChanged += (EventHandler)call.Args[0]; return null;
+                    case "remove_ViewportWidthChanged": viewportChanged -= (EventHandler)call.Args[0]; return null;
                     default: return null; // Event subscriptions need no simulated events: WPF raises visibility.
                 }
             }).GetTransparentProxy();
@@ -95,7 +115,7 @@ internal static class Program
         if (args.Length > 3 && args[3] == "--ide") { RunIde(args); return; }
         var app = new Application();
         Window window = null;
-        Editor first = null, second = null;
+        Editor first = null, second = null, third = null;
         try
         {
             first = new Editor();
@@ -122,22 +142,19 @@ internal static class Program
                     Check(Visual(first.Background).Opacity == 0 && abandoned.DefaultBackgroundColor.A == 0, "browser is transparent and concealed before asynchronous initialization");
                     Check(first.ViewBackground == Brushes.Black && first.Gutter.Background == Brushes.Black, "original theme stays intact until first frame");
                     first.Root.Visibility = Visibility.Collapsed;
-                    await Until(() => Task.FromResult(Browser(first.Background) == null), "hide during initialization releases player after visibility walk");
+                    await Task.Delay(150);
+                    Check(Browser(first.Background) == abandoned, "hide during initialization retains the same player during the switching period");
                     first.Root.Visibility = Visibility.Visible;
-                    await Until(() => Task.FromResult(Browser(first.Background) != null), "return schedules fresh player outside visibility walk");
-                    Check(Browser(first.Background) != null && Browser(first.Background) != abandoned, "rapid return creates a fresh player");
+                    await Until(() => Task.FromResult(Browser(first.Background) != null), "return retains player outside visibility walk");
+                    Check(Browser(first.Background) == abandoned, "rapid return reuses the initializing player");
                     await Ready(first.Background, "initial scene");
                     if (args.Length > 3 && args[3] == "--inspect") await Task.Delay(20000);
                     Check(Browser(second.Background) == null, "hidden tab never initializes alongside active editor");
-                    var released = Browser(first.Background);
+                    var cached = Browser(first.Background);
                     first.Root.Visibility = Visibility.Collapsed;
-                    await Until(() => Task.FromResult(Browser(first.Background) == null), "hide with trailing scrollbar sibling completes without WPF child-index corruption");
-                    Check(Browser(first.Background) == null && first.ViewBackground == Brushes.Black, "hidden tab releases browser and restores editor brushes");
-                    Check(!((System.Windows.Threading.DispatcherTimer)Field(first.Background, "timer")).IsEnabled, "hidden tab has no playback polling timer");
-                    bool disposed = false;
-                    try { await released.ExecuteScriptAsync("1"); }
-                    catch (InvalidOperationException) { disposed = true; }
-                    Check(disposed, "released native WebView rejects script execution");
+                    await Task.Delay(150);
+                    Check(Browser(first.Background) == cached, "hide with trailing scrollbar sibling retains player without WPF child-index corruption");
+                    Check(!((System.Windows.Threading.DispatcherTimer)Field(first.Background, "timer")).IsEnabled, "cached hidden tab stops layout and diagnostics polling");
                     Select(args[2]);
                     second.Root.Visibility = Visibility.Visible;
                     await Ready(second.Background, "restored video");
@@ -148,6 +165,17 @@ internal static class Program
                     if (args.Length > 3 && args[3] == "--inspect") await Task.Delay(20000);
                     first.Root.Visibility = Visibility.Visible;
                     await Ready(first.Background, "split editor");
+                    Check(Browser(first.Background) == cached, "return to a ready tab reuses its native browser");
+                    var hiddenVideo = Browser(second.Background);
+                    await hiddenVideo.ExecuteScriptAsync("window.switchEvents = []; for (const name of ['pause', 'play', 'playing', 'visibilitychange']) document.addEventListener(name, e => window.switchEvents.push({ name, hidden: document.hidden, time: performance.now() }), true)");
+                    second.Root.Visibility = Visibility.Collapsed;
+                    var videoBeforeHide = JObject.Parse(await hiddenVideo.ExecuteScriptAsync("window.wallpaperControl.diagnostics()"));
+                    await Task.Delay(1500);
+                    var videoWhileHidden = JObject.Parse(await hiddenVideo.ExecuteScriptAsync("window.wallpaperControl.diagnostics()"));
+                    File.AppendAllText(Path.Combine(output, "lifecycle.log"), "Hidden video: " + await hiddenVideo.ExecuteScriptAsync("({ keepAlive: window.claudiaKeepAlive, hidden: document.hidden, events: window.switchEvents, state: window.wallpaperControl.diagnostics() })") + Environment.NewLine);
+                    Check((bool?)videoWhileHidden["video"]?["paused"] == false, "cached hidden video is not paused by page visibility");
+                    Check((double?)videoWhileHidden["video"]?["time"] > (double?)videoBeforeHide["video"]?["time"] + 0.3, "cached hidden native video keeps advancing");
+                    second.Root.Visibility = Visibility.Visible;
                     Check(Browser(first.Background) != null && Browser(second.Background) != null, "two visible split editors both retain playback");
                     setting.IsHidden = true; Update(first.Background, setting); Update(second.Background, setting);
                     await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) == null), "hide command drains queued lifecycle work");
@@ -158,23 +186,61 @@ internal static class Program
                     await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) == null), "minimize releases players on next dispatcher turn");
                     window.WindowState = WindowState.Normal;
                     await Ready(first.Background, "window restore");
+                    var beforeUnload = Browser(first.Background);
                     panels.Children.Remove(first.Root);
-                    await Until(() => Task.FromResult(Browser(first.Background) == null), "unloaded editor releases player");
+                    await Task.Delay(150);
+                    Check(Browser(first.Background) == beforeUnload, "temporary tab unload retains player during switching period");
                     panels.Children.Add(first.Root);
                     await Ready(first.Background, "reloaded editor");
+                    Check(Browser(first.Background) == beforeUnload, "reloaded tab reuses player");
+                    var otherRetained = Browser(second.Background);
                     for (int i = 0; i < 30; i++)
                     {
                         first.Root.Visibility = Visibility.Collapsed; second.Root.Visibility = Visibility.Visible;
-                        await Until(() => Task.FromResult(Browser(first.Background) == null && Browser(second.Background) != null), "stress switch to second " + i);
+                        await Task.Delay(25);
+                        Check(Browser(first.Background) == beforeUnload && Browser(second.Background) == otherRetained, "stress switch to second reuses both players " + i);
                         second.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible;
-                        await Until(() => Task.FromResult(Browser(second.Background) == null && Browser(first.Background) != null), "stress switch to first " + i);
+                        await Task.Delay(25);
+                        Check(Browser(first.Background) == beforeUnload && Browser(second.Background) == otherRetained, "stress switch to first reuses both players " + i);
                     }
                     await Ready(first.Background, "after rapid switching");
                     var retained = Browser(first.Background);
                     for (int i = 0; i < 100; i++) { first.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible; }
                     await Ready(first.Background, "coalesced visibility changes");
                     Check(Browser(first.Background) == retained, "same-turn visibility changes coalesce without browser churn");
+                    second.Root.Visibility = Visibility.Visible;
+                    second.Focus();
+                    third = new Editor(); Update(third.Background, setting);
+                    Grid.SetColumn(third.Root, 1); panels.Children.Add(third.Root);
+                    await Ready(third.Background, "second visible split for idle expiry");
+                    first.Root.Visibility = Visibility.Collapsed;
+                    var secondBeforeSleep = Browser(second.Background);
+                    var thirdBeforeSleep = Browser(third.Background);
+                    File.AppendAllText(Path.Combine(output, "lifecycle.log"), "Waiting 35 seconds before switching focused split editor" + Environment.NewLine);
+                    await Task.Delay(35000);
+                    third.Focus();
+                    // Layout and settings updates must not extend the inactivity deadline.
+                    for (var i = 0; i < 15; i++)
+                    {
+                        first.Resize(); second.Resize(); third.Resize(); Update(third.Background, setting);
+                        await Task.Delay(2000);
+                    }
+                    Check(Browser(first.Background) == retained, "switching focused split resets the global deadline for an older hidden tab beyond 60 seconds");
+                    await Task.Delay(28000);
+                    Check(Browser(first.Background) == retained, "hidden player remains alive just before 60 seconds since the last switch");
+                    await Until(() => Task.FromResult(Browser(first.Background) == null), "60 seconds without switching releases hidden player despite layout and settings activity");
+                    Check(first.ViewBackground == Brushes.Black && first.Gutter.Background == Brushes.Black, "sleep restores hidden editor brushes");
+                    Check(Browser(second.Background) == secondBeforeSleep && Browser(third.Background) == thirdBeforeSleep, "sleep retains both visible split players");
+                    bool disposed = false;
+                    try { await retained.ExecuteScriptAsync("1"); }
+                    catch (InvalidOperationException) { disposed = true; }
+                    Check(disposed, "sleep disposes native WebView instead of merely pausing it");
+                    first.Root.Visibility = Visibility.Visible;
+                    await Ready(first.Background, "return after sleep");
+                    Check(Browser(first.Background) != retained, "return after sleep creates a new player");
+                    first.Root.Visibility = Visibility.Collapsed;
                     await (Task)BackgroundType.GetMethod("DisposeAsync").Invoke(first.Background, null);
+                    Check(Browser(first.Background) == null, "closing a cached hidden tab disposes it without waiting for sleep");
                     Check(first.ViewBackground == Brushes.Black && first.Gutter.Background == Brushes.Black, "mode transition awaits old brush restoration");
                     first.ViewBackground = Brushes.DarkBlue; first.Gutter.Background = Brushes.DarkBlue;
                     first.Root.Visibility = Visibility.Collapsed; first.Root.Visibility = Visibility.Visible;
@@ -189,7 +255,7 @@ internal static class Program
             app.Run(window);
         }
         catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
-        finally { ((IDisposable)first?.Background)?.Dispose(); ((IDisposable)second?.Background)?.Dispose(); }
+        finally { ((IDisposable)first?.Background)?.Dispose(); ((IDisposable)second?.Background)?.Dispose(); ((IDisposable)third?.Background)?.Dispose(); }
     }
 
     private static void RunIde(string[] args)
@@ -210,7 +276,7 @@ internal static class Program
         object FieldIde(string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ide);
         void UpdateIde() => type.GetMethod("Update").Invoke(ide, new object[] { setting });
         async Task ReadyIde(string label) => await Until(() => Task.FromResult((bool)FieldIde("ready") && ((Grid)FieldIde("visual"))?.Opacity == 0.35), label);
-        Editor editor = null;
+        Editor editor = null, newlyOpened = null;
         UpdateIde();
         Check(FieldIde("browser") == null, "unloaded main window creates no player");
         window.Loaded += async (s, e) => {
@@ -225,9 +291,36 @@ internal static class Program
                 type.GetMethod("RegisterView", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { editor.View });
                 await Until(() => Task.FromResult(editor.ViewBackground == Brushes.Transparent), "new editor joins shared background");
                 Check(Browser(editor.Background) == null, "shared mode does not allocate a duplicate editor player");
+                // Disable the fallback poll so a one-second repair cannot hide a black first frame.
+                ((System.Windows.Threading.DispatcherTimer)FieldIde("timer")).Stop();
+                var sharedPlayer = FieldIde("browser");
+                editor.Root.Visibility = Visibility.Collapsed;
+                editor.Root.Background = Brushes.Black; editor.Text.Background = Brushes.Black;
+                editor.View.Background = Brushes.Black;
+                var firstFrame = AtNextFrame(() => editor.Root.Background == Brushes.Transparent
+                    && editor.Text.Background == Brushes.Transparent && editor.ViewBackground == Brushes.Transparent);
+                editor.Root.Visibility = Visibility.Visible;
+                Check(await firstFrame, "switching tabs clears editor and ancestor backgrounds before the first rendered frame without polling");
+                editor.Root.Background = Brushes.DarkBlue; editor.Text.Background = Brushes.DarkBlue;
+                firstFrame = AtNextFrame(() => editor.Root.Background == Brushes.Transparent
+                    && editor.Text.Background == Brushes.Transparent && editor.ViewBackground == Brushes.Transparent);
+                editor.View.Background = Brushes.DarkBlue;
+                Check(await firstFrame, "editor background reset is repaired before rendering without waiting for the timer");
+                editor.Root.Background = Brushes.Black;
+                firstFrame = AtNextFrame(() => editor.Root.Background == Brushes.Transparent);
+                editor.Focus();
+                Check(await firstFrame, "editor focus refreshes an opaque ancestor before rendering");
+                newlyOpened = new Editor();
+                type.GetMethod("RegisterView", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { newlyOpened.View });
+                firstFrame = AtNextFrame(() => newlyOpened.Root.Background == Brushes.Transparent
+                    && newlyOpened.ViewBackground == Brushes.Transparent);
+                root.Children.Add(newlyOpened.Root);
+                Check(await firstFrame, "newly loaded text view is transparent on its first frame without polling");
+                Check(ReferenceEquals(sharedPlayer, FieldIde("browser")), "tab transparency updates retain the same shared native player");
+                newlyOpened.Close(); root.Children.Remove(newlyOpened.Root);
                 setting.IsHidden = true; UpdateIde(); Update(editor.Background, setting);
                 await Until(() => Task.FromResult(FieldIde("browser") == null), "hide command releases shared player");
-                Check(tool.Background == Brushes.DarkGray && editor.ViewBackground == Brushes.Black, "hide command restores tool and editor backgrounds");
+                Check(tool.Background == Brushes.DarkGray && editor.ViewBackground == Brushes.DarkBlue, "hide command restores tool background and the editor's latest theme brush");
                 setting.IsHidden = false; UpdateIde(); Update(editor.Background, setting);
                 await ReadyIde("show command restores shared player");
                 window.WindowState = WindowState.Minimized;
@@ -239,8 +332,14 @@ internal static class Program
                 await Until(() => Task.FromResult(FieldIde("browser") == null && Browser(editor.Background) != null), "disabling transparency returns to editor-only playback");
                 Check(tool.Background == Brushes.DarkGray, "disabling transparency restores opaque tool pane");
                 await Ready(editor.Background, "editor-only after disabling transparency");
+                var cachedEditor = Browser(editor.Background);
+                root.Children.Remove(editor.Root);
+                await Task.Delay(150);
+                Check(Browser(editor.Background) == cachedEditor, "unloaded open editor stays cached before switching to shared mode");
                 typeof(Setting).GetProperty("TransparentToolWindows").SetValue(setting, true); UpdateIde(); Update(editor.Background, setting);
                 await ReadyIde("re-enabling transparency restores shared wallpaper");
+                await Until(() => Task.FromResult(Browser(editor.Background) == null), "switching to shared mode releases cached unloaded editor immediately");
+                root.Children.Add(editor.Root);
                 await Until(() => Task.FromResult(Browser(editor.Background) == null && editor.ViewBackground == Brushes.Transparent), "re-enabling releases editor player and preserves shared transparency");
                 for (var i = 0; i < 30; i++)
                 {
@@ -254,9 +353,18 @@ internal static class Program
                 Check(tool.Background == Brushes.DarkGray, "disposing shared background restores tool pane");
             }
             catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
-            finally { ((IDisposable)editor?.Background)?.Dispose(); ((IDisposable)ide).Dispose(); window.Close(); }
+            finally { ((IDisposable)editor?.Background)?.Dispose(); ((IDisposable)newlyOpened?.Background)?.Dispose(); ((IDisposable)ide).Dispose(); window.Close(); }
         };
         app.Run(window);
+    }
+
+    private static async Task<bool> AtNextFrame(Func<bool> condition)
+    {
+        var frame = new TaskCompletionSource<bool>();
+        EventHandler handler = (s, e) => frame.TrySetResult(condition());
+        CompositionTarget.Rendering += handler;
+        try { return await Task.WhenAny(frame.Task, Task.Delay(2000)) == frame.Task && await frame.Task; }
+        finally { CompositionTarget.Rendering -= handler; }
     }
 
     private static async Task Ready(object background, string label)
@@ -267,7 +375,7 @@ internal static class Program
             if (browser == null) return Task.FromResult(false);
             var ready = (bool)Field(background, "ready");
             if (!ready && Visual(background).Opacity != 0) throw new Exception("Unready frame exposed: " + label);
-            return Task.FromResult(ready);
+            return Task.FromResult(ready && Math.Abs(Visual(background).Opacity - 0.35) < 0.001);
         }, label + " produces a first frame");
         Check(Math.Abs(Visual(background).Opacity - 0.35) < 0.001, label + " applies opacity before first visible frame");
         File.AppendAllText(Path.Combine(output, "lifecycle.log"), label + " first frame: " + clock.ElapsedMilliseconds + "ms" + Environment.NewLine);

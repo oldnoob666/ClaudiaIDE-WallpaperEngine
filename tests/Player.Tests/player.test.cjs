@@ -5,12 +5,12 @@ const vm = require('node:vm');
 const path = require('node:path');
 const playerPath = path.resolve(__dirname, '../../Shared/WallpaperEngine/Player');
 
-function harness(type = 'scene') {
+function harness(type = 'scene', keepAlive = false) {
   const messages = [], events = {}, intervals = [], scenes = [], videos = [], scripts = [];
   const target = { style: {}, replaceChildren() {}, append() {} }, status = {};
   let selection = { id: 'one', type, title: 'test', source: '/asset/one/', entry: 'clip.mp4' };
   const context = {
-    console, setInterval(callback) { intervals.push(callback); },
+    console, claudiaKeepAlive: keepAlive, setInterval(callback) { intervals.push(callback); },
     requestAnimationFrame(callback) { callback(); },
     fetch: async () => ({ ok: true, json: async () => selection }),
     document: {
@@ -21,7 +21,8 @@ function harness(type = 'scene') {
         if (tag === 'script') return {};
         const handlers = {};
         const video = { style: {}, addEventListener(name, callback) { handlers[name] = callback; },
-          fire(name) { handlers[name]?.(); }, play: async () => {}, pause() {}, load() {}, remove() {}, removeAttribute() {},
+          fire(name) { handlers[name]?.(); }, paused: false,
+          async play() { this.paused = false; }, pause() { this.paused = true; }, load() {}, remove() {}, removeAttribute() {},
           requestVideoFrameCallback(callback) { this.frame = callback; }
         };
         videos.push(video); return video;
@@ -51,6 +52,42 @@ test('scene renderer is not a blocking dependency for videos or initial state fe
   const h = harness('video'); await h.settle();
   assert.equal(h.videos.length, 1);
   assert.equal(h.scripts.length, 0, 'videos never load WebWallGL');
+});
+
+test('retained editor keeps video playing and follows wallpaper changes while hidden', async () => {
+  const h = harness('video', true); await h.settle();
+  h.context.document.hidden = true; h.events.visibilitychange();
+  assert.equal(h.context.wallpaperControl.diagnostics().video.paused, false);
+  h.select({ id: 'two', type: 'video', title: 'next', source: '/asset/two/', entry: 'next.mp4' });
+  await h.intervals[0](); await h.settle();
+  assert.equal(h.videos.length, 2, 'retained hidden player follows current wallpaper without waiting for return');
+  assert.equal(h.context.wallpaperControl.diagnostics().current, 'two');
+});
+
+test('retained scene is not explicitly paused by tab visibility changes', async () => {
+  const h = harness('scene', true); await h.settle(); h.rendererReady(); await h.settle();
+  h.context.document.hidden = true; h.events.visibilitychange();
+  assert.notEqual(h.scenes[0].paused, true);
+});
+
+test('retained hidden video recovers a browser-initiated pause without overriding explicit pause or disposal', async () => {
+  const h = harness('video', true); await h.settle();
+  const video = h.videos[0];
+  h.context.document.hidden = true;
+  video.pause(); video.fire('pause');
+  assert.equal(video.paused, false, 'resume the native visibility pause');
+  h.context.wallpaperControl.pause(true); video.fire('pause');
+  assert.equal(video.paused, true, 'explicit pause stays paused');
+  h.context.wallpaperControl.pause(false); h.events.pagehide(); video.fire('pause');
+  assert.equal(video.paused, true, 'disposed video is never restarted');
+});
+
+test('shared player retains the original pause behavior when its window is hidden', async () => {
+  const h = harness('video'); await h.settle();
+  h.context.document.hidden = true; h.events.visibilitychange();
+  assert.equal(h.context.wallpaperControl.diagnostics().video.paused, true);
+  h.context.document.hidden = false; h.events.visibilitychange();
+  assert.equal(h.context.wallpaperControl.diagnostics().video.paused, false);
 });
 
 test('scene first frame controls readiness; creation/loading alone cannot expose a frame', async () => {

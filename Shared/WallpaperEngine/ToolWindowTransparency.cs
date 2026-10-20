@@ -49,8 +49,8 @@ namespace ClaudiaIDE.WallpaperEngine
 
         public void ClearEditor(IWpfTextView view)
         {
-            if (view.IsClosed) return;
-            if (view.Background != Brushes.Transparent) editors[view] = view.Background;
+            if (view.IsClosed || view.Background == Brushes.Transparent) return;
+            editors[view] = view.Background;
             view.Background = Brushes.Transparent;
         }
 
