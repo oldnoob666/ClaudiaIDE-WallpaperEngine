@@ -4,7 +4,7 @@
 
 **[⬇ 下载稳定版 3.1.52.13（VSIX，双击安装）](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/download/v3.1.52.13/ClaudiaIDE-WallpaperEngine-3.1.52.13.vsix)** · [最新正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) · [安装与常见问题](docs/quick-start.md) · [反馈问题](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/issues)
 
-**[测试版 3.1.52.15 Preview 2：修复透明模式下代码无法点击](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.15-preview.2)**（Pre-release）。3.1.52.14 Preview 1 存在代码区鼠标命中故障，试用透明工具窗口请更新到此修复版；日常使用也可继续选择上方稳定版。测试源码位于 `codex/tool-window-transparency` 分支，稳定版源码保留在 `main`。
+**[测试版 3.1.52.16 Preview 3：脚本切换休眠与黑屏优化](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16-preview.3)**（Pre-release）。频繁切换脚本时保留已加载的播放器，停止切换 60 秒后自动释放隐藏标签；同时优化共享背景的透明化时机，修复切换标签时短暂露出深色底色的问题，并保留 Preview 2 的代码点击修复。日常使用也可继续选择上方稳定版。测试源码位于 `codex/tool-window-transparency` 分支，稳定版源码保留在 `main`。
 
 面向 **Windows x64 / Visual Studio 2022**，不是 VS Code 插件。需要本机已安装 Wallpaper Engine 和 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)。普通用户不需要下载源码、安装 Node.js 或编译项目。
 
