@@ -1,10 +1,10 @@
 # 安装、启用与常见问题
 
-适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，稳定下载为 **3.1.52.13**；透明工具窗口请使用修复了代码点击故障的 **3.1.52.15**。当前验证范围是 Windows x64 和 Visual Studio 2022。
+适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，当前正式版为 **3.1.52.16**，包含工具窗口透明、代码点击修复、脚本切换休眠和黑屏修复。当前验证范围是 Windows x64 和 Visual Studio 2022。
 
-希望试用工具窗口透明时，下载 [3.1.52.15 Preview 2 预发布版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.15-preview.2)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.15.vsix`。GitHub 的「最新正式版」入口继续指向稳定版。不要继续使用存在代码点击故障的 3.1.52.14 Preview 1。
+下载 [3.1.52.16 正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.16.vsix`，或使用[最新正式版入口](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest)。正式版复用 Preview 3 的同一安装包，已安装 Preview 3 的用户无需重装；旧稳定版及 Preview 1、Preview 2 用户可升级到本版。
 
-## 工具窗口背景透明（3.1.52.14）
+## 工具窗口背景透明
 
 启用 Wallpaper Engine 背景后，打开「扩展 → ClaudiaIDE → 打开设置」，进入当前使用的「Light theme」或「Dark theme」，将「工具窗口背景透明」设为 `True`，点击确定/应用。英文界面名称是「Transparent tool window backgrounds」。
 
@@ -14,7 +14,7 @@
 
 ## 下载安装
 
-1. 打开[稳定版下载页面](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.13)，在 Assets 中下载 `ClaudiaIDE-WallpaperEngine-3.1.52.13.vsix`。`Source code` 是开发源码，普通用户不用下载。
+1. 打开[正式版下载页面](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)，在 Assets 中下载 `ClaudiaIDE-WallpaperEngine-3.1.52.16.vsix`。`Source code` 是开发源码，普通用户不用下载。
 2. 关闭所有 Visual Studio 窗口，双击 `.vsix`，选择自己的 VS 2022 并按安装器提示完成安装。
 3. 重新启动 VS，打开任意受支持的代码/文本文件。扩展位于“扩展 → ClaudiaIDE”。安装包已包含播放器、WebWallGL 和壁纸查询工具；无需安装 Node.js、npm、.NET 9 SDK 或“Visual Studio 扩展开发”工作负载。
 
@@ -75,7 +75,7 @@
 
 ## 更新、卸载和恢复原版
 
-- 更新：关闭 VS，安装本项目较新的 VSIX；安装器拒绝覆盖时先卸载旧版。推广版固定下载链接不会被实验包替换，预发布版会单独标记。
+- 更新：关闭 VS，安装本项目较新的 VSIX；安装器拒绝覆盖时先卸载旧版。当前正式版为 3.1.52.16，已安装相同版本的 Preview 3 无需重装；预发布版会单独标记。
 - 卸载：扩展 → 管理扩展 → 已安装 → ClaudiaIDE Wallpaper Engine，点击卸载，关闭 VS 完成操作。
 - 恢复原版：卸载联动版后，从 [buchizo/ClaudiaIDE](https://github.com/buchizo/ClaudiaIDE) 获取官方安装包。联动版不修改 Wallpaper Engine 程序或壁纸素材。
 

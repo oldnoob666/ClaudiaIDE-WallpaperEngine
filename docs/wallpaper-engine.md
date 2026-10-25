@@ -1,12 +1,12 @@
 # ClaudiaIDE Wallpaper Engine 联动版
 
-非官方联动版 3.1.52.13，基于 ClaudiaIDE Release3.1.52，面向 Visual Studio 2022。保留原扩展身份，作为原版的替换版使用；未发布到 Marketplace。[下载稳定安装包](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.13)，新用户请先阅读[安装与常见问题](quick-start.md)。许可证说明见仓库首页。
+非官方联动版 3.1.52.16 正式版，基于 ClaudiaIDE Release3.1.52，面向 Visual Studio 2022。保留原扩展身份，作为原版的替换版使用；未发布到 Marketplace。[下载正式安装包](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)，新用户请先阅读[安装与常见问题](quick-start.md)。本版与 Preview 3 安装包相同，已安装 Preview 3 无需重装。许可证说明见仓库首页。
 
 ## 配置与使用
 
 - 启用窗口检查环境通过后，可将浅色/深色主题均设为 `WallpaperEngine` 模式；保留已有非零不透明度，零值恢复为 `0.35`。
 - 安装目录留空时自动定位；失败时选择你的 Steam 库中 `steamapps\common\wallpaper_engine` 的实际目录，并从当前用户的显示器列表选择要跟随的一项。
-- 动态背景显示在代码编辑区。`Ctrl+Shift+Alt+C` 显示/隐藏背景。
+- 动态背景显示在代码编辑区；开启当前浅色/深色主题下的「工具窗口背景透明」后，主窗口停靠区共用一张动态壁纸，工具窗口透出背景，保留文字、选中高亮和代码区鼠标操作。开关默认关闭。`Ctrl+Shift+Alt+C` 显示/隐藏背景。
 - 菜单“扩展 → ClaudiaIDE → 启用 Wallpaper Engine 动态背景…”可检测环境、重新启用联动、查看最近播放问题和打开日志。
 - 菜单“扩展 → ClaudiaIDE → 打开设置”可调整透明度、目录和显示器；背景来源选 `Single` 并保存可恢复普通图片。
 
