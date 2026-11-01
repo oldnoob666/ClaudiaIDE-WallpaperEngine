@@ -112,6 +112,7 @@ internal static class Program
     {
         output = Path.GetFullPath(args[0]); Directory.CreateDirectory(output);
         File.WriteAllText(Path.Combine(output, "lifecycle.log"), "");
+        if (args.Length > 1 && args[1] == "--lightbulb") { RunLightbulb(); return; }
         if (args.Length > 3 && args[3] == "--ide") { RunIde(args); return; }
         var app = new Application();
         Window window = null;
@@ -256,6 +257,69 @@ internal static class Program
         }
         catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
         finally { ((IDisposable)first?.Background)?.Dispose(); ((IDisposable)second?.Background)?.Dispose(); ((IDisposable)third?.Background)?.Dispose(); }
+    }
+
+    private static void RunLightbulb()
+    {
+        var root = new Grid();
+        var wallpaper = new Grid { IsHitTestVisible = false };
+        root.Children.Add(wallpaper);
+        var editor = new Editor(); root.Children.Add(editor.Root);
+        var preview = new Editor();
+        var popup = new System.Windows.Controls.Primitives.Popup {
+            Child = preview.Root, PlacementTarget = root, Width = 300, Height = 180
+        };
+        root.Children.Add(popup);
+        var window = new Window { Content = root, Width = 600, Height = 400, ShowActivated = false };
+        var type = BackgroundType.Assembly.GetType("ClaudiaIDE.WallpaperEngine.IdeWallpaperBackground", true);
+        var transparencyType = BackgroundType.Assembly.GetType("ClaudiaIDE.WallpaperEngine.ToolWindowTransparency", true);
+        var ide = Activator.CreateInstance(type, window, root);
+        void Set(string name, object value) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(ide, value);
+        var watchdog = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Send) {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        try
+        {
+            window.Show(); popup.IsOpen = true;
+            window.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() => { }));
+            Check(Window.GetWindow(preview.Text) == window && !preview.Text.IsDescendantOf(root),
+                "lightbulb preview belongs to the main window but uses a separate popup visual tree");
+            Set("enabled", true); Set("ready", true);
+            Set("transparency", Activator.CreateInstance(transparencyType, root, wallpaper));
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            bool inputRan = false;
+            watchdog.Tick += (s, e) => { watchdog.Stop(); frame.Continue = false; };
+            watchdog.Start();
+            type.GetMethod("RegisterView", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { editor.View });
+            type.GetMethod("RegisterView", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { preview.View });
+            _ = window.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() => {
+                inputRan = true; frame.Continue = false;
+            }));
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            watchdog.Stop();
+            Check(inputRan, "opening a lightbulb preview lets input run instead of endlessly refreshing backgrounds");
+            Check(preview.ViewBackground == Brushes.Black, "popup preview retains its opaque editor background");
+            Check(editor.ViewBackground == Brushes.Transparent, "docked editor stays transparent behind the lightbulb menu");
+            // Move a previously docked editor into the popup. Restore it once,
+            // without the BackgroundBrushChanged notification starting a loop.
+            preview.Close();
+            root.Children.Remove(editor.Root); popup.Child = editor.Root;
+            frame = new System.Windows.Threading.DispatcherFrame(); inputRan = false;
+            watchdog.Start();
+            type.GetMethod("QueueTransparencyRefresh", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ide, null);
+            _ = window.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() => {
+                inputRan = true; frame.Continue = false;
+            }));
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            Check(inputRan && editor.ViewBackground == Brushes.Black, "moving an editor outside the wallpaper restores it without starving input");
+        }
+        catch (Exception error) { File.AppendAllText(Path.Combine(output, "lifecycle.log"), error + Environment.NewLine); Environment.ExitCode = 1; }
+        finally
+        {
+            watchdog.Stop(); ((IDisposable)ide).Dispose();
+            editor.Close(); preview.Close(); popup.IsOpen = false; window.Close();
+            ((IDisposable)editor.Background).Dispose(); ((IDisposable)preview.Background).Dispose();
+        }
     }
 
     private static void RunIde(string[] args)

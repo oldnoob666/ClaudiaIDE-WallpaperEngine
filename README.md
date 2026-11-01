@@ -2,9 +2,9 @@
 
 让 Visual Studio 2022 的编辑器背景跟随 Wallpaper Engine 当前壁纸，支持视频和部分动态场景。
 
-**[⬇ 下载正式版 3.1.52.16（VSIX，双击安装）](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/download/v3.1.52.16/ClaudiaIDE-WallpaperEngine-3.1.52.16.vsix)** · [最新正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) · [安装与常见问题](docs/quick-start.md) · [反馈问题](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/issues)
+**[⬇ 下载正式版 3.1.52.17（VSIX，双击安装）](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/download/v3.1.52.17/ClaudiaIDE-WallpaperEngine-3.1.52.17.vsix)** · [最新正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest) · [安装与常见问题](docs/quick-start.md) · [反馈问题](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/issues)
 
-**[3.1.52.16 正式版：工具窗口透明、脚本切换休眠与黑屏修复](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)**。本版由 Preview 3 转为正式发布，包含可选的工具窗口透明、代码区鼠标点击修复，以及切换脚本时复用播放器、停止切换 60 秒后释放隐藏标签的优化。正式版与 Preview 3 安装包完全相同，已安装 Preview 3 的用户无需重装；正式版源码位于 `main`。
+**[3.1.52.17 正式版：修复点击灯泡菜单导致 VS 卡住](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.17)**。修复开启工具窗口透明后，展开代码修复灯泡菜单时可能使整个 VS 界面无法操作的问题。保留工具窗口透明、代码区鼠标操作修复、脚本切换播放器复用、60 秒休眠和黑屏修复；正式版源码位于 `main`。
 
 面向 **Windows x64 / Visual Studio 2022**，不是 VS Code 插件。需要本机已安装 Wallpaper Engine 和 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)。普通用户不需要下载源码、安装 Node.js 或编译项目。
 
@@ -28,6 +28,7 @@
 - 支持透明度、浅色/深色主题设置和 `Ctrl+Shift+Alt+C` 显示/隐藏。
 - 可选的「工具窗口背景透明」：Wallpaper Engine 模式下，主窗口停靠区共用一张动态壁纸，输出、解决方案资源管理器等工具窗口透出背景；默认关闭。在「扩展 → ClaudiaIDE → 打开设置 → 当前浅色/深色主题」中启用，关闭后恢复原有外观。
 - 工具窗口透明模式支持正常点击代码、双击选词和跨行拖选，并保留选中高亮与输入控件样式。
+- 灯泡修复菜单中的临时预览保留原有背景，避免透明刷新循环导致 VS 界面卡住。
 - 保留 ClaudiaIDE 原有图片和幻灯片模式；新建受支持的文本编辑视图也会显示背景。
 - 默认只在编辑区首次可见时加载壁纸；切换脚本后保留已加载标签的播放器，连续 60 秒没有切换时，自动释放隐藏标签的播放器。最小化 VS、隐藏背景或关闭视图时仍及时释放。开启工具窗口透明后，主窗口停靠区共用一个播放器。
 - 加载期间保留编辑器主题底色；首帧就绪后按设置的透明度显示背景，避免初始化白底闪现。
@@ -39,7 +40,7 @@
 - 本版沿用 ClaudiaIDE 扩展标识，按原版的替换版使用，不要同时启用两版。安装器拒绝替换时，先在 VS 扩展管理器卸载原版，再安装本版。
 - 当前验证范围为 Windows x64 / VS 2022；仓库保留的 VS 2019 工程及 Windows ARM64 不在本次验证范围。
 - Wallpaper Engine 未运行时使用其配置文件最后保存的选择。各编辑区独立播放，播放进度不与桌面逐帧同步。
-- 首页下载与「最新正式版」入口均指向 3.1.52.16；后续试验功能会标记为预发布。更新前可先查看 Release 说明。
+- 首页下载与「最新正式版」入口均指向 3.1.52.17；后续试验功能会标记为预发布。更新前可先查看 Release 说明。
 
 ## 从源码构建
 

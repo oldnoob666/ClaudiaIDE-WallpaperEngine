@@ -49,7 +49,10 @@ namespace ClaudiaIDE.WallpaperEngine
 
         public void ClearEditor(IWpfTextView view)
         {
-            if (view.IsClosed || view.Background == Brushes.Transparent) return;
+            // Popup previews inherit the main Window through the logical tree,
+            // but are outside this wallpaper's visual tree. Clearing them here
+            // would make Refresh restore them and requeue forever at DataBind.
+            if (view.IsClosed || !view.VisualElement.IsDescendantOf(root) || view.Background == Brushes.Transparent) return;
             editors[view] = view.Background;
             view.Background = Brushes.Transparent;
         }

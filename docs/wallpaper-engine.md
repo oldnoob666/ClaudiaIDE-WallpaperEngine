@@ -1,6 +1,6 @@
 # ClaudiaIDE Wallpaper Engine 联动版
 
-非官方联动版 3.1.52.16 正式版，基于 ClaudiaIDE Release3.1.52，面向 Visual Studio 2022。保留原扩展身份，作为原版的替换版使用；未发布到 Marketplace。[下载正式安装包](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)，新用户请先阅读[安装与常见问题](quick-start.md)。本版与 Preview 3 安装包相同，已安装 Preview 3 无需重装。许可证说明见仓库首页。
+非官方联动版 3.1.52.17 正式版，基于 ClaudiaIDE Release3.1.52，面向 Visual Studio 2022。保留原扩展身份，作为原版的替换版使用；未发布到 Marketplace。[下载正式安装包](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.17)，新用户请先阅读[安装与常见问题](quick-start.md)。本版修复透明模式下点击灯泡菜单导致 VS 卡住的问题，3.1.52.16 及更早版本用户建议升级。许可证说明见仓库首页。
 
 ## 配置与使用
 

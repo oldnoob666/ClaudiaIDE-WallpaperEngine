@@ -1,8 +1,8 @@
 # 安装、启用与常见问题
 
-适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，当前正式版为 **3.1.52.16**，包含工具窗口透明、代码点击修复、脚本切换休眠和黑屏修复。当前验证范围是 Windows x64 和 Visual Studio 2022。
+适用于 ClaudiaIDE Wallpaper Engine 非官方联动版，当前正式版为 **3.1.52.17**，修复点击灯泡菜单导致 VS 卡住的问题，并保留工具窗口透明、代码点击修复、脚本切换休眠和黑屏修复。当前验证范围是 Windows x64 和 Visual Studio 2022。
 
-下载 [3.1.52.16 正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.16.vsix`，或使用[最新正式版入口](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest)。正式版复用 Preview 3 的同一安装包，已安装 Preview 3 的用户无需重装；旧稳定版及 Preview 1、Preview 2 用户可升级到本版。
+下载 [3.1.52.17 正式版](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.17)中的 `ClaudiaIDE-WallpaperEngine-3.1.52.17.vsix`，或使用[最新正式版入口](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/latest)。3.1.52.16 及更早版本用户建议升级；已安装本次验证的 3.1.52.17 本地修复包无需重装，正式版复用同一安装包。
 
 ## 工具窗口背景透明
 
@@ -14,7 +14,7 @@
 
 ## 下载安装
 
-1. 打开[正式版下载页面](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.16)，在 Assets 中下载 `ClaudiaIDE-WallpaperEngine-3.1.52.16.vsix`。`Source code` 是开发源码，普通用户不用下载。
+1. 打开[正式版下载页面](https://github.com/oldnoob666/ClaudiaIDE-WallpaperEngine/releases/tag/v3.1.52.17)，在 Assets 中下载 `ClaudiaIDE-WallpaperEngine-3.1.52.17.vsix`。`Source code` 是开发源码，普通用户不用下载。
 2. 关闭所有 Visual Studio 窗口，双击 `.vsix`，选择自己的 VS 2022 并按安装器提示完成安装。
 3. 重新启动 VS，打开任意受支持的代码/文本文件。扩展位于“扩展 → ClaudiaIDE”。安装包已包含播放器、WebWallGL 和壁纸查询工具；无需安装 Node.js、npm、.NET 9 SDK 或“Visual Studio 扩展开发”工作负载。
 
@@ -57,6 +57,7 @@
 | 我使用 VS Code | 本包用于 Visual Studio 2022，不能安装到 VS Code。 |
 | 双击安装包后找不到 VS | 确认安装的是 VS 2022 桌面 IDE，且其 VSIX Installer 可用；本版本仅验证 Windows x64。 |
 | 提示已安装或不能覆盖 | 先确认 VS 已全部关闭；在扩展管理器卸载旧版/原版，关闭 VS 完成操作后再安装。 |
+| 点击灯泡修复菜单后 VS 界面卡住 | 更新到 3.1.52.17，修复工具窗口透明模式下临时预览编辑器的背景刷新循环。 |
 | 下载 GitHub 较慢或失败 | 在浏览器中重试 Release 页的 VSIX 附件；请使用本仓库发布的文件。暂未维护其他下载镜像。 |
 | 没找到安装目录 | 目录应是 Steam 库中的 `steamapps\common\wallpaper_engine`，不是工坊壁纸目录；可手动选择。 |
 | 没有 config.json、当前用户或显示器记录 | 用当前 Windows 用户运行 Wallpaper Engine，应用一张壁纸后重新检测。不会自动使用其他用户的记录。 |
@@ -75,7 +76,7 @@
 
 ## 更新、卸载和恢复原版
 
-- 更新：关闭 VS，安装本项目较新的 VSIX；安装器拒绝覆盖时先卸载旧版。当前正式版为 3.1.52.16，已安装相同版本的 Preview 3 无需重装；预发布版会单独标记。
+- 更新：关闭 VS，安装本项目较新的 VSIX；安装器拒绝覆盖时先卸载旧版。当前正式版为 3.1.52.17，已安装本次验证的同版本本地修复包无需重装；预发布版会单独标记。
 - 卸载：扩展 → 管理扩展 → 已安装 → ClaudiaIDE Wallpaper Engine，点击卸载，关闭 VS 完成操作。
 - 恢复原版：卸载联动版后，从 [buchizo/ClaudiaIDE](https://github.com/buchizo/ClaudiaIDE) 获取官方安装包。联动版不修改 Wallpaper Engine 程序或壁纸素材。
 
